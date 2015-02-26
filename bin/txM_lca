@@ -1,0 +1,209 @@
+#!/usr/bin/env python 
+
+################################################################################
+### COPYRIGHT ##################################################################
+
+# New York Genome Center
+
+# SOFTWARE COPYRIGHT NOTICE AGREEMENT
+# This software and its documentation are copyright (2014) by the New York
+# Genome Center. All rights are reserved. This software is supplied without
+# any warranty or guaranteed support whatsoever. The New York Genome Center
+# cannot be responsible for its use, misuse, or functionality.
+
+# Version: 0.1
+# Author: Andre Corvelo
+
+################################################################# /COPYRIGHT ###
+################################################################################
+
+
+
+################################################################################
+### MODULES ####################################################################
+
+from optparse import OptionParser
+from sys import stdin, stdout, stderr, exit
+from re import findall
+
+################################################################### /MODULES ###
+################################################################################
+
+
+
+################################################################################
+### FUNCTIONS ##################################################################
+	
+def lca(ts):
+	if len(ts) != 1:	
+		f = ts[0].split(':')
+		l = ts[-1].split(':')
+		for i in xrange(len(f)):
+			if f[i] != l[i]:
+				return f[i-1]	
+			else:
+				continue
+		return f[-1]
+	else:
+		return ts[0].split(':')[-1]	
+
+def p_rec(l, tax_d, excluded):
+	la = l.split('\t')
+	if la[4] == '-':
+		return '\t'.join(la + tax_d['0'][:3])
+	elif la[4] == '.':
+		return '\t'.join(la + tax_d['-'][:3])
+	else:
+		ts = set()
+		if not excluded:
+			for h in findall(r'_\d+', la[4])[:int(findall(r'(?!0)\d+', la[3])[0])]:
+				ts.add(tax_d[h[1:]][3])
+			return '\t'.join(la + tax_d[lca(sorted(ts))][:3])
+		else:
+			for h in findall(r'_\d+', la[4])[:int(findall(r'(?!0)\d+', la[3])[0])]:
+				if not set(tax_d[h[1:]][3].split(':')).intersection(excluded):
+					ts.add(tax_d[h[1:]][3])
+			if ts:
+				return '\t'.join(la + tax_d[lca(sorted(ts))][:3])
+			else:
+				return '\t'.join(la + tax_d['0'][:3])
+			
+
+def p_pair(pl1, pl2, tax_d):
+	tax_1 = pl1.split('\t')[5]
+	tax_2 = pl2.split('\t')[5]
+	
+	tag_d = {'-': 'F', '0': 'U'}
+	tag_l = ['M','M']
+	if tax_1 in tag_d:
+		tag_l[0] = tag_d[tax_1]
+	if tax_2 in tag_d:
+		tag_l[1] = tag_d[tax_2]
+	tag = ''.join(tag_l)
+	
+	if tax_1 == '-':
+		p_tax = tax_2
+	elif tax_1 == '0':
+		p_tax = tax_1
+		if tax_2 != '-' and tax_2 != '0':
+			p_tax = tax_2
+	else:
+		p_tax = tax_1
+		if tax_2 != '-' and tax_2 != '0' and tax_2 != tax_1:
+			if tax_2 in tax_d[tax_1][3].split(':'):
+				pass
+			elif tax_1 in tax_d[tax_2][3].split(':'):
+				p_tax = tax_2
+			else:
+				p_tax = lca(sorted([tax_d[tax_1][3], tax_d[tax_2][3]]))
+	tax_str = '\t'.join([tag] + tax_d[p_tax][:3])
+	return pl1 + '\t' + tax_str + '\n' + pl2 + '\t' + tax_str
+		
+################################################################# /FUNCTIONS ###
+################################################################################
+
+
+
+################################################################################
+### ARGUMENTS,OPTIONS ##########################################################
+
+parser = OptionParser(usage="\n%prog -t tax file", version="%prog 0.1")
+
+parser.add_option(
+	"-i",
+	metavar = "FILE",
+	type = "string",
+	dest = "map_file",
+	default = 'stdin',
+	help="Input GEM alignment file (default = 'stdin')"
+	)
+
+parser.add_option(
+	"-t",
+	metavar = "FILE",
+	type = "string",
+	dest = "tax_file",
+	default = None,
+	help = "Taxonomic table file (Mandatory)"
+	)
+
+parser.add_option(
+	"-p",
+	metavar = "FLAG",
+	dest = "paired",
+	action = 'store_true',
+	default = False,
+	help = "Paired LCA determination (only for interleaved input; default = False)"
+	)
+
+parser.add_option(
+	"-x",
+	metavar = "STR_LIST",
+	type = "string",
+	dest = "excluded",
+	default = None,
+	help = "Branches excluded for LCA. Comma-separated list of taxids (default = None)"
+	)
+
+(opt, args) = parser.parse_args()
+
+if opt.tax_file == None:
+	parser.print_help()
+	exit(-1)
+     
+######################################################### /ARGUMENTS,OPTIONS ###
+################################################################################
+
+
+
+################################################################################
+### CONSTANTS ##################################################################
+
+################################################################# /CONSTANTS ###
+################################################################################
+
+
+
+################################################################################
+### MAIN #######################################################################
+
+if __name__ == '__main__':
+	if opt.excluded:
+		excluded = set(opt.excluded.split(','))
+	else:
+		excluded = None
+
+	# read tax info
+	tax_d = {}
+	tax_file = open(opt.tax_file, 'r')	
+	for l in tax_file:
+		la = l.strip().split('\t')
+		tax_d[la[0]] = la
+	tax_file.close()
+	tax_d['0'] = ['0', 'no rank', 'unmapped', '0']
+	tax_d['-'] = ['-', 'no rank', 'filtered out', '-']
+
+	# read map file
+	if opt.map_file != 'stdin':
+		map_file = open(opt.map_file, 'r')
+	else:
+		map_file = stdin
+	if not opt.paired:
+		for l in map_file:
+			stdout.write(p_rec(l.strip(), tax_d, excluded) + '\n')
+			stderr.write(p_rec(l.strip(), tax_d, excluded) + '\n')
+	elif opt.paired:
+		while 1:
+			l1 = map_file.readline()
+			if not l1:
+				break
+			l2 = map_file.readline()
+			pl1 = p_rec(l1.strip(), tax_d, excluded)
+			pl2 = p_rec(l2.strip(), tax_d, excluded)			
+			stdout.write(p_pair(pl1, pl2, tax_d) + '\n')
+			stderr.write(p_pair(pl1, pl2, tax_d) + '\n')
+	if opt.map_file != 'stdin':
+		map_file.close()
+
+###################################################################### /MAIN ###
+################################################################################

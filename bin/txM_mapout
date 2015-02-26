@@ -1,0 +1,107 @@
+#!/usr/bin/env python 
+
+################################################################################
+### COPYRIGHT ##################################################################
+
+# New York Genome Center
+
+# SOFTWARE COPYRIGHT NOTICE AGREEMENT
+# This software and its documentation are copyright (2014) by the New York
+# Genome Center. All rights are reserved. This software is supplied without
+# any warranty or guaranteed support whatsoever. The New York Genome Center
+# cannot be responsible for its use, misuse, or functionality.
+
+# Version: 0.1
+# Author: Andre Corvelo
+
+################################################################# /COPYRIGHT ###
+################################################################################
+
+
+
+################################################################################
+### MODULES ####################################################################
+
+from optparse import OptionParser
+import sys
+
+################################################################### /MODULES ###
+################################################################################
+
+
+
+################################################################################
+### FUNCTIONS ##################################################################
+
+################################################################# /FUNCTIONS ###
+################################################################################
+
+
+
+################################################################################
+### ARGUMENTS,OPTIONS ##########################################################
+
+parser = OptionParser(usage="\n%prog [options]", version="%prog 0.1")
+
+parser.add_option(
+	"-i",
+	metavar = "FILE",
+	type = "string",
+	dest = "input_file",
+	default = 'stdin',
+	help = "Input GEM alignment file (default = 'stdin')"
+	)
+
+parser.add_option(
+	"-p",
+	metavar = "FLAG",
+	dest = "paired",
+	action = 'store_true',
+	default = False,
+	help = "Paired (for interleaved files; default = False)"
+	)
+
+(opt, args) = parser.parse_args()
+        
+######################################################### /ARGUMENTS,OPTIONS ###
+################################################################################
+
+
+
+################################################################################
+### CONSTANTS ##################################################################
+
+################################################################# /CONSTANTS ###
+################################################################################
+
+
+
+################################################################################
+### MAIN #######################################################################
+
+if __name__ == "__main__":
+	if opt.input_file != 'stdin':
+		ff = open(opt.input_file, 'r')
+	else:
+		ff = sys.stdin
+	
+	while True:
+		l1 = ff.readline()
+		if not l1:
+			break
+		if not opt.paired:
+			if l1.strip().split('\t')[4] == '-':
+				sys.stdout.write(l1)
+			else:
+				sys.stderr.write(l1)
+		elif opt.paired:
+			l2 = ff.readline()
+			if l1.strip().split('\t')[4] == '-' and l2.strip().split('\t')[4] == '-':
+				sys.stdout.write(l1 + l2)
+			else:
+				sys.stderr.write(l1 + l2)
+	if opt.input_file != 'stdin':
+		ff.close()
+	
+###################################################################### /MAIN ###
+################################################################################

@@ -1,0 +1,189 @@
+#!/usr/bin/env python 
+
+################################################################################
+### COPYRIGHT ##################################################################
+
+# New York Genome Center
+
+# SOFTWARE COPYRIGHT NOTICE AGREEMENT
+# This software and its documentation are copyright (2014) by the New York
+# Genome Center. All rights are reserved. This software is supplied without
+# any warranty or guaranteed support whatsoever. The New York Genome Center
+# cannot be responsible for its use, misuse, or functionality.
+
+# Version: 0.1
+# Author: Andre Corvelo
+
+################################################################# /COPYRIGHT ###
+################################################################################
+
+
+
+################################################################################
+### MODULES ####################################################################
+
+from optparse import OptionParser
+import sys, uuid, os
+
+################################################################### /MODULES ###
+################################################################################
+
+
+
+################################################################################
+### FUNCTIONS ##################################################################
+	
+################################################################# /FUNCTIONS ###
+################################################################################
+
+
+
+################################################################################
+### ARGUMENTS,OPTIONS ##########################################################
+
+parser = OptionParser(usage="\n%prog [options]", version="%prog v0.1")
+
+parser.add_option(
+	"-i", 
+	metavar = "FILE",
+	type = "string",
+	dest = "fasta_file",
+	default = None,
+	help = "Input fasta file (Mandatory)"
+	)
+
+parser.add_option(
+	"-c",
+	metavar = "FILE",
+	type = "string",
+	dest="corr_file",
+	default = None,
+	help = "Correspondence file gi -> tax file (Mandatory)"
+	)
+
+parser.add_option(
+	"-t",
+	metavar = "FILE",
+	type = "string",
+	dest = "tax_file",
+	default = None,
+	help = "Taxonomy table file (Mandatory)"
+	)
+
+parser.add_option(
+	"-p",
+	metavar = "STR",
+	type = "string",
+	dest = "prefix",
+	default = None,
+	help = "Prefix for output files (defaults to the input fasta basename)"
+	)
+
+parser.add_option(
+	"-T",
+	metavar = "INT",
+	type = "string",
+	dest = "threads",
+	default = "1",
+	help = "Number of threads (default = 1)"
+	)
+
+parser.add_option(
+	"-Q",
+	metavar = "DIR",
+	type = "string",
+	dest = "queue",
+	default = None,
+	help = "Cluster queue/partition (default = None)"
+	)
+
+parser.add_option(
+	"-S",
+	metavar = "DIR",
+	type = "string",
+	dest = "slots",
+	default = "1",
+	help = "Cluster slots (default = 1)"
+	)
+
+parser.add_option(
+	"--dry",
+	metavar = "FLAG",
+	dest = "dry",
+	action = 'store_true',
+	default = False,
+	help = "Dry run (default = False)"
+	)
+
+(opt, args) = parser.parse_args()
+if not opt.fasta_file or not opt.corr_file or not opt.tax_file:
+	parser.print_help()
+	sys.exit(-1)
+
+     
+######################################################### /ARGUMENTS,OPTIONS ###
+################################################################################
+
+
+
+################################################################################
+### CONSTANTS ##################################################################
+
+################################################################# /CONSTANTS ###
+################################################################################
+
+
+
+################################################################################
+### MAIN #######################################################################
+
+if __name__ == '__main__':
+	module_dir = os.path.abspath(os.path.dirname(__file__))
+		
+	fasta_f = opt.fasta_file
+	gitax_f = opt.corr_file
+	tax_f = opt.tax_file
+
+	if opt.prefix:
+		prefix = opt.prefix
+	else:
+		prefix = '.'.join(os.path.basename(fasta_f).split('.')[:-1])
+
+	in_f = prefix + '.gitax.fa'
+	out_f = prefix + '.discarded.fa'
+	len_f = prefix + '.len'
+	sh_f = prefix + '.sh'
+
+	threads = opt.threads
+	sge_queue = opt.queue
+	sge_slots = opt.slots
+	if sge_queue:
+		sge_f = prefix + '.sge'
+
+	dry_run = opt.dry	
+	
+	gitax_str = ' '.join(['txM_gitax', '-i', fasta_f, '-c', gitax_f,'-t', tax_f, '2>', out_f, '>', in_f])
+	len_str = ' '.join(['txM_fastalen', '-i', in_f, '>', len_f])
+	index_str = ' '.join(['gem-indexer', '-i', in_f, '-o', prefix, '-T', threads])
+
+	sh_file = open(sh_f, 'w')
+	sh_file.write('#!/bin/sh\n\n')
+	sh_file.write('export PATH=$PATH:' + module_dir + '/bin\n\n')
+	sh_file.write(gitax_str + '\n')
+	sh_file.write(len_str + '\n')
+	sh_file.write(index_str + '\n\n')
+	sh_file.close()
+
+	if sge_queue:
+		sge_file = open(sge_f, 'w')
+		sge_file.write('\t'.join(['txMi_' + prefix, sge_queue, '0', '-', sge_slots, '.', 'sh ' + sh_f]) + '\n')
+		sge_file.close()
+		if not dry_run:
+			os.system(' '.join([module_dir + '/bin/txM_sge', '-s', sge_f]))
+	else:
+		if not dry_run:
+			os.system(' '.join(['sh', sh_f]))
+
+###################################################################### /MAIN ###
+################################################################################
+

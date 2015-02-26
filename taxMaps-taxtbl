@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+
+################################################################################
+### COPYRIGHT ##################################################################
+
+# New York Genome Center
+
+# SOFTWARE COPYRIGHT NOTICE AGREEMENT
+# This software and its documentation are copyright (2014) by the New York
+# Genome Center. All rights are reserved. This software is supplied without
+# any warranty or guaranteed support whatsoever. The New York Genome Center
+# cannot be responsible for its use, misuse, or functionality.
+
+# Version: 0.1
+# Author: Andre Corvelo
+
+################################################################# /COPYRIGHT ###
+################################################################################
+
+
+
+################################################################################
+### MODULES ####################################################################
+
+from optparse import OptionParser
+import sys
+
+################################################################### /MODULES ###
+################################################################################
+
+
+
+################################################################################
+### FUNCTIONS ##################################################################
+
+def find_path(node, node_dict):
+	path = [node]
+	while path[-1] != '1':
+		path.append(node_dict[path[-1]][0])
+	return path[::-1]
+	
+################################################################# /FUNCTIONS ###
+################################################################################
+
+
+
+################################################################################
+### ARGUMENTS,OPTIONS ##########################################################
+
+parser = OptionParser(usage = "\n%prog -n names.dmp -t nodes.dmp", version = "%prog 0.1")
+
+parser.add_option(
+	"-n",
+	metavar = "FILE",
+	type = "string",
+	dest = "names_file",
+	default = None,
+	help = "NCBI Taxonomy names.dmp file (Mandatory)"
+	)
+
+parser.add_option(
+	"-t",
+	metavar = "FILE",
+	type = "string",
+	dest = "nodes_file",
+	default = None,
+	help = "NCBI Taxonomy nodes.dmp file (Mandatory)"
+	)
+
+(opt, args) = parser.parse_args()
+
+if not opt.names_file or not opt.nodes_file:
+	parser.print_help()
+	exit(-1)
+
+######################################################### /ARGUMENTS,OPTIONS ###
+################################################################################
+
+
+
+################################################################################
+### CONSTANTS ##################################################################
+
+################################################################# /CONSTANTS ###
+################################################################################
+
+
+
+################################################################################
+### MAIN #######################################################################
+
+if __name__ == '__main__':
+	node_dict = {}
+
+	nodes_file = open(opt.nodes_file, 'r')
+	for line in nodes_file:
+		la = line.strip().split('\t')		
+		node = la[0]
+		parent = la[2]
+		rank = la[4]
+		node_dict[node] = [parent, rank] 
+	nodes_file.close()		
+
+	names_file = open(opt.names_file, 'r')
+	for line in names_file:
+		la = line.strip().split('\t')		
+		if la[6] == 'scientific name':
+			node = la[0]
+			sci_name = la[2]
+			node_dict[node].append(sci_name)
+	names_file.close()	   
+
+	for node in node_dict:
+		node_list = [node] + node_dict[node][1:] + [':'.join(find_path(node, node_dict))]
+		sys.stdout.write('\t'.join(node_list) + '\n')
+
+###################################################################### /MAIN ###
+################################################################################

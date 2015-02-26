@@ -1,0 +1,153 @@
+#!/usr/bin/env python 
+
+################################################################################
+### COPYRIGHT ##################################################################
+
+# New York Genome Center
+
+# SOFTWARE COPYRIGHT NOTICE AGREEMENT
+# This software and its documentation are copyright (2014) by the New York
+# Genome Center. All rights are reserved. This software is supplied without
+# any warranty or guaranteed support whatsoever. The New York Genome Center
+# cannot be responsible for its use, misuse, or functionality.
+
+# Version: 0.1
+# Author: Andre Corvelo
+
+################################################################# /COPYRIGHT ###
+################################################################################
+
+
+
+################################################################################
+### MODULES ####################################################################
+
+from optparse import OptionParser
+import sys, uuid, os
+
+################################################################### /MODULES ###
+################################################################################
+
+
+
+################################################################################
+### FUNCTIONS ##################################################################
+	
+################################################################# /FUNCTIONS ###
+################################################################################
+
+
+
+################################################################################
+### ARGUMENTS,OPTIONS ##########################################################
+
+parser = OptionParser(usage="\n%prog [options]", version="%prog v0.1")
+
+parser.add_option(
+	"-i", 
+	metavar = "FILE",
+	type = "string",
+	dest = "fasta_file",
+	default = 'stdin',
+	help = "Input fasta file (default = 'stdin')"
+	)
+
+parser.add_option(
+	"-c",
+	metavar = "FILE",
+	type = "string",
+	dest="corr_file",
+	default = None,
+	help = "Correspondence file gi -> tax file (Mandatory)"
+	)
+
+parser.add_option(
+	"-t",
+	metavar = "FILE",
+	type = "string",
+	dest = "tax_file",
+	default = None,
+	help = "Taxonomy table file (Mandatory)"
+	)
+
+(opt, args) = parser.parse_args()
+if not opt.corr_file or not opt.tax_file:
+	parser.print_help()
+	sys.exit(-1)
+
+     
+######################################################### /ARGUMENTS,OPTIONS ###
+################################################################################
+
+
+
+################################################################################
+### CONSTANTS ##################################################################
+
+tfn = str(uuid.uuid4()) + '.fa'
+
+################################################################# /CONSTANTS ###
+################################################################################
+
+
+
+################################################################################
+### MAIN #######################################################################
+
+if __name__ == "__main__":
+	fgis = set()
+	if opt.fasta_file != 'stdin':
+		ff = open(opt.fasta_file, 'r')
+	else:
+		ff = sys.stdin
+		of = open(tfn, 'w')
+	for l in ff:
+		if l[0] == '>':
+			fgis.add(l.rstrip().split('|')[1])
+		if opt.fasta_file == 'stdin':
+			of.write(l)
+	if opt.fasta_file == 'stdin':
+		of.close()
+	else:
+		ff.close()
+
+	nd = {}
+	corr_file = open(opt.corr_file, 'r')
+	for line in corr_file:
+		la = line.strip().split('\t')
+		if la[0] in fgis:
+			nd[la[0]] = la[1]
+	corr_file.close()
+
+	ts = set()
+	tax_file = open(opt.tax_file, 'r')
+	for line in tax_file:
+		ts.add(line.strip().split('\t')[0])
+	tax_file.close()
+
+	if opt.fasta_file != 'stdin':
+		ff = open(opt.fasta_file, 'r')
+	else:
+		ff = open(tfn, 'r')
+	for line in ff:
+		l = line.rstrip()
+		if l != '':
+			if l[0] == '>':
+				head = l
+				gi = head.split('|')[1]
+				dev = sys.stderr
+				if gi in nd:
+					if nd[gi] in ts:
+						dev = sys.stdout
+						head = '>' + gi + '_' + nd[gi]
+				dev.write(head + '\n')		
+			else:
+				dev.write(l + '\n') 
+		else:
+			continue
+	ff.close()
+	if opt.fasta_file == 'stdin':
+		os.remove(tfn)
+
+###################################################################### /MAIN ###
+################################################################################

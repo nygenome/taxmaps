@@ -1,0 +1,175 @@
+#!/usr/bin/env python 
+
+################################################################################
+### COPYRIGHT ##################################################################
+
+# New York Genome Center
+
+# SOFTWARE COPYRIGHT NOTICE AGREEMENT
+# This software and its documentation are copyright (2014) by the New York
+# Genome Center. All rights are reserved. This software is supplied without
+# any warranty or guaranteed support whatsoever. The New York Genome Center
+# cannot be responsible for its use, misuse, or functionality.
+
+# Version: 0.1
+# Author: Andre Corvelo
+
+################################################################# /COPYRIGHT ###
+################################################################################
+
+
+
+################################################################################
+### MODULES ####################################################################
+
+from optparse import OptionParser
+import random, sys, os, commands, datetime
+
+################################################################### /MODULES ###
+################################################################################
+
+
+
+################################################################################
+### FUNCTIONS ##################################################################
+
+def now():
+	return str(datetime.datetime.now()).split('.')[0].replace(' ', 'T').replace(':', '.')
+
+def submitt(pipe_name, job, submd, swd, logdir):
+	# define log, job filenames and  error/out prefixes
+	log_filename = logdir + '/' + pipe_name + '.log'
+	job_filename = logdir + '/' + pipe_name + '.' + job['int_id'].zfill(2) + '.' + job['name']
+	
+	# change dir
+	if job['wd'][0] == '/':
+		jwd = job['wd']
+	else:
+		jwd = swd+'/'+job['wd']
+	os.system('mkdir -p ' +jwd)
+	os.chdir(jwd)
+	
+	# check dependencies
+	dep_ids = []
+	if job['depen'] != '-':
+		dep_l = job['depen'].split(':')
+		for dep in dep_l:
+			if dep not in submd:
+				print '\nUpstream jobs not submitted. Revise your .pipe file.'
+				if submd:
+					print 'Killing previously submitted jobs:'
+					os.system('qdel ' + ','.join(submd.values()))
+				print
+				sys.exit()
+			else:
+				dep_ids.append(submd[dep])
+		deps = ','.join(dep_ids)
+	else:
+		deps = ''
+
+	# create bash script
+	job_script = open(job_filename,'w')				
+	job_script.write('#!/bin/sh\n\n')
+	job_script.write('#$ -cwd' + '\n')
+	job_script.write('#$ -q ' + job['queue'] + '\n')
+	job_script.write('#$ -pe make ' + job['cpus'] + '\n')
+	job_script.write('#$ -o ' + job_filename + '.$JOB_ID.o\n')
+	job_script.write('#$ -e ' + job_filename + '.$JOB_ID.e\n')	
+	if deps:
+		job_script.write('#$ -hold_jid ' + deps + '\n')
+	job_script.write('\n')
+	job_script.write('export PATH=$SGE_O_PATH\n\n')
+	job_script.write('echo `date` START $JOB_ID ' + job['int_id'].zfill(2) + ' ' + job['name'] + ' on $HOSTNAME using $NSLOTS cores >> ' + log_filename + '\n\n')
+	job_script.write(job['cmd'] + '\n\n')
+	job_script.write('qstat -j $JOB_ID > ' + job_filename + '.$JOB_ID.q\n')	
+	job_script.write('echo `date` FNISH $JOB_ID ' + job['int_id'].zfill(2) + ' ' + job['name'] + ' on $HOSTNAME using $NSLOTS cores >> ' + log_filename + '\n')
+	job_script.close()
+
+	# submit and get sge jobid
+	response = commands.getoutput('qsub ' + job_filename)
+	sub_id = response.split()[2]
+
+	# print successful submission
+	print now() + '\tJob ' + job['name'] + ' ' + job['int_id'] + ' has been submitted from ' + jwd + ' to ' + job['queue'] + ' with JOB_ID=' + sub_id
+
+	# print to log
+	os.system('echo `date` SUBMT ' + sub_id + ' ' + job['int_id'].zfill(2)+ ' ' + job['name'] + ' to ' + job['queue'] + ' from ' + jwd + ' >> ' + log_filename)
+
+	# add JOB_ID to script file name
+	os.system('mv ' + job_filename + ' ' + job_filename + '.' + sub_id + '.sh')
+
+	# add to submitted jobs dictionary (for dependencies)
+	submd[job['int_id']] = sub_id
+	
+################################################################# /FUNCTIONS ###
+################################################################################
+
+
+
+################################################################################
+### ARGUMENTS,OPTIONS ##########################################################
+
+parser = OptionParser(usage="\n%prog -p pipefile", version="%prog 0.1")
+
+parser.add_option(
+	"-s",
+	metavar = "FILE",
+	type = "string",
+	dest = "pipe_file",
+	default = None,
+	help = "SGE specification file (mandatory)"
+	)
+
+(opt, args) = parser.parse_args()
+ 
+if opt.pipe_file == None:
+	parser.print_help()
+	sys.exit(-1)
+   
+######################################################### /ARGUMENTS,OPTIONS ###
+################################################################################
+
+
+################################################################################
+### CONSTANTS ##################################################################
+
+l_form = ['name', 'queue', 'int_id', 'depen', 'cpus', 'wd', 'cmd']
+
+################################################################# /CONSTANTS ###
+################################################################################
+
+
+################################################################################
+### MAIN #######################################################################
+if __name__ == "__main__":	
+	# create submitted dictionary
+	submd = {}
+
+	# get pipe name and cwd
+	pipe_name = opt.pipe_file.split('/')[-1]
+	swd = os.getcwd()
+
+	# mk directories
+	logdir = swd + '/' + pipe_name + '_' + now()
+	os.system('mkdir -p ' + logdir)
+
+
+	# read .pipe file
+	os.system('cp ' + opt.pipe_file + ' ' + logdir + '/' + pipe_name + '.copy')
+	pipe_file = open(opt.pipe_file, 'r')
+	for line in pipe_file:
+		l = line.strip()		
+		if l:
+			if l[0] == '#':
+				pass
+			elif l[0] == '>':
+				os.system(l[1:])
+			elif l[0] == '<':
+				pass
+			else:
+				job = dict(zip(l_form, l.split('\t')))			
+				submitt(pipe_name, job, submd, swd, logdir)
+	pipe_file.close()		
+
+###################################################################### /MAIN ###
+################################################################################

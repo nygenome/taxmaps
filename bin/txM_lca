@@ -11,7 +11,7 @@
 # any warranty or guaranteed support whatsoever. The New York Genome Center
 # cannot be responsible for its use, misuse, or functionality.
 
-# Version: 0.1
+# Version: 0.2
 # Author: Andre Corvelo
 
 ################################################################# /COPYRIGHT ###
@@ -107,7 +107,7 @@ def p_pair(pl1, pl2, tax_d):
 ################################################################################
 ### ARGUMENTS,OPTIONS ##########################################################
 
-parser = OptionParser(usage="\n%prog -t tax file", version="%prog 0.1")
+parser = OptionParser(usage="\n%prog -t tax file", version="%prog v0.2")
 
 parser.add_option(
 	"-i",

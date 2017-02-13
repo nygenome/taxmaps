@@ -11,7 +11,7 @@
 # any warranty or guaranteed support whatsoever. The New York Genome Center
 # cannot be responsible for its use, misuse, or functionality.
 
-# Version: 0.1
+# Version: 0.2
 # Author: Andre Corvelo
 
 ################################################################# /COPYRIGHT ###
@@ -55,7 +55,7 @@ def submitt(pipe_name, job, submd, swd, logdir):
 		dep_l = job['depen'].split(':')
 		for dep in dep_l:
 			if dep not in submd:
-				print '\nUpstream jobs not submitted. Revise your .pipe file.'
+				print '\nUpstream jobs not submitted. Revise your .sge file.'
 				if submd:
 					print 'Killing previously submitted jobs:'
 					os.system('qdel ' + ','.join(submd.values()))
@@ -67,12 +67,16 @@ def submitt(pipe_name, job, submd, swd, logdir):
 	else:
 		deps = ''
 
+	# compute memory
+	job_mem = str(int(job['cpus'])*12)
+	
 	# create bash script
 	job_script = open(job_filename,'w')				
 	job_script.write('#!/bin/sh\n\n')
 	job_script.write('#$ -cwd' + '\n')
 	job_script.write('#$ -q ' + job['queue'] + '\n')
 	job_script.write('#$ -pe make ' + job['cpus'] + '\n')
+	job_script.write('#$ -l h_vmem=' + job_mem+ 'G\n')
 	job_script.write('#$ -o ' + job_filename + '.$JOB_ID.o\n')
 	job_script.write('#$ -e ' + job_filename + '.$JOB_ID.e\n')	
 	if deps:
@@ -109,7 +113,7 @@ def submitt(pipe_name, job, submd, swd, logdir):
 ################################################################################
 ### ARGUMENTS,OPTIONS ##########################################################
 
-parser = OptionParser(usage="\n%prog -p pipefile", version="%prog 0.1")
+parser = OptionParser(usage="\n%prog -p pipefile", version="%prog v0.2")
 
 parser.add_option(
 	"-s",

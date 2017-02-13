@@ -1,7 +1,7 @@
 # taxMaps
 taxMaps is an ultra-efficient, customizable and fully scalable taxonomic classification tool for short-read data designed to deal with large DNA/RNA metagenomics samples. Its performance and comprehensiveness makes it highly suitable for unbiased contamination detection in large-scale sequencing operations, microbiome studies comprising a large number of samples, and for applications where the analysis delivery time is a critical factor, such as pathogen identification from clinical or environmental samples. 
 
-* Version: 0.1
+* Version: 0.2
 * Author: Andre Corvelo, [New York Genome Center](https://www.nygenome.org)
 
 taxMaps is freely available for academic and non-commercial research purposes ([`LICENSE.txt`](https://github.com/nygenome/taxmaps/blob/master/LICENSE.txt)).  
@@ -10,57 +10,57 @@ taxMaps is freely available for academic and non-commercial research purposes ([
 * Flexible input - `.bam`, `.fastq` (compressed/uncompressed, interleaved or not) or any custom command that streams `.fastq` to `STDOUT`
 * Thorough preprocessing - quality trim, multiple adapter removal, hard trim (5' and 3'), low complexity filter.
 * Mapping prioritization - through the use of multiple custom indexes (useful for spike-in and host subtraction).
-* Performance - taxMaps takes full advantage of the outstanding features and performance of [GEM](http://www.nature.com/nmeth/journal/v9/n12/full/nmeth.2221.html). When using pre-compressed indexes, this state-of-the-art aligner can map in a complete (all best hits retrieved) and sensitive (up to 20% edit distance) manner up to 20 million reads per hour against a single-file nucleotide database encompassing more than 117 Gbases, including NCBI’s nt database, microbial RefSeq and thousands of microbial and viral genomes, on a single 16 CPU machine. 
+* Performance - taxMaps takes full advantage of the outstanding features and performance of [GEM](http://www.nature.com/nmeth/journal/v9/n12/full/nmeth.2221.html). When using pre-compressed indexes, this state-of-the-art aligner can map in a very sensitive (up to 20% edit distance) manner several million reads per hour against a single-file nucleotide database encompassing more than 370 Gbases, including NCBI’s nt database, microbial RefSeq and thousands of microbial and viral genomes, on a single 16 CPU machine. 
 * Detailed mapping reports - including coverage and edit-distance histograms per taxa, which can be visualized interactively.
 * SGE support.  
 
 # Manual
 ## List of contents
-* [Installation](https://github.com/nygenome/taxmaps#installation)
-   * [Dependencies](https://github.com/nygenome/taxmaps#dependencies)
-   * [Download](https://github.com/nygenome/taxmaps#download)
-* [Building the taxonomic table](https://github.com/nygenome/taxmaps#building-the-taxonomic-table)
-* [Preprocessing and indexing your database](https://github.com/nygenome/taxmaps#preprocessing-and-indexing-your-database)
-   * [Pre-built indexes](https://github.com/nygenome/taxmaps/blob/master/README.md#pre-built-indexes)
-* [Running taxMaps](https://github.com/nygenome/taxmaps#running-taxmaps)
-   * [Basic usage](https://github.com/nygenome/taxmaps#basic-usage)
-      * [Output directory and sample prefix](https://github.com/nygenome/taxmaps#output-directory-and-sample-prefix)
-   * [Input](https://github.com/nygenome/taxmaps#input)
-      * [FASTQ](https://github.com/nygenome/taxmaps/blob/master/README.md#fastq)
-      * [BAM](https://github.com/nygenome/taxmaps/blob/master/README.md#bam)
-      * [Custom command](https://github.com/nygenome/taxmaps/blob/master/README.md#custom-command)
-   * [Preprocessing](https://github.com/nygenome/taxmaps#preprocessing)
-      * [Quality scores encoding](https://github.com/nygenome/taxmaps/blob/master/README.md#quality-scores-encoding)
-      * [Quality trimming](https://github.com/nygenome/taxmaps/blob/master/README.md#quality-trimming)
-      * [Adapter removal](https://github.com/nygenome/taxmaps/blob/master/README.md#adapter-removal)
-      * [Low complexity filtering](https://github.com/nygenome/taxmaps/blob/master/README.md#low-complexity-filtering)
-      * [Hard-trimming your data](https://github.com/nygenome/taxmaps/blob/master/README.md#hard-trimming-your-data)
-      * [Minimum read length](https://github.com/nygenome/taxmaps/blob/master/README.md#minimum-read-length)
-   * [Mapping](https://github.com/nygenome/taxmaps#mapping)
-      * [Index and length file](https://github.com/nygenome/taxmaps/blob/master/README.md#index-and-length-file) 
-      * [Maximum edit distance](https://github.com/nygenome/taxmaps/blob/master/README.md#maximum-edit-distance)
-      * [Number of CPUs](https://github.com/nygenome/taxmaps/blob/master/README.md#numbers-of-cpus)
-      * [Custom index names](https://github.com/nygenome/taxmaps/blob/master/README.md#custom-index-names)
-      * [Multiple indexes](https://github.com/nygenome/taxmaps/blob/master/README.md#multiple-indexes)
-   * [Taxonomic classification](https://github.com/nygenome/taxmaps#taxonomic-classification)
-   * [Reporting](https://github.com/nygenome/taxmaps#reporting)
-      * [Coverage histograms](https://github.com/nygenome/taxmaps/blob/master/README.md#coverage-histograms)
-      * [Lowest taxonomic level](https://github.com/nygenome/taxmaps/blob/master/README.md#lowest-taxonomic-level)
-      * [Minimum reporting evidence](https://github.com/nygenome/taxmaps/blob/master/README.md#minimum-reporting-evidence)
-      * [Group-specific reports](https://github.com/nygenome/taxmaps/blob/master/README.md#group-specific-reports)
-   * [Output](https://github.com/nygenome/taxmaps#output)
-      * [Output directory](https://github.com/nygenome/taxmaps/blob/master/README.md#output-directory)
-      * [Merged mapping file](https://github.com/nygenome/taxmaps/blob/master/README.md#merged-mapping-file)
-      * [Summary table](https://github.com/nygenome/taxmaps/blob/master/README.md#summary-table)
-      * [Report table](https://github.com/nygenome/taxmaps/blob/master/README.md#report-table)
-      * [Interactive abundance chart](https://github.com/nygenome/taxmaps/blob/master/README.md#interactive-abundance-chart)
-   * [SGE](https://github.com/nygenome/taxmaps#sge)
-   * [Dry run](https://github.com/nygenome/taxmaps#dry-run)
-* [Quick reference](https://github.com/nygenome/taxmaps#quick-reference)
-   * [./taxMaps](https://github.com/nygenome/taxmaps#taxmaps-1)
-   * [./taxMaps-taxtbl](https://github.com/nygenome/taxmaps#taxmaps-taxtbl)
-   * [./taxMaps-index](https://github.com/nygenome/taxmaps#taxmaps-index)
-   * [./bin](https://github.com/nygenome/taxmaps#bin)
+* [Installation](#installation)
+   * [Dependencies](#dependencies)
+   * [Download](#download)
+* [Databases](#databases)
+   * [Pre-built indexes](README.md#pre-built-indexes)
+   * [Custom indexes](README.md#custom-indexes)
+      * [Building the taxonomic table](README.md#building-the-taxonomic-table)
+      * [Preprocessing and indexing your custom database](README.md#preprocessing-and-indexing-your-custom-database)
+* [Running taxMaps](#running-taxmaps)
+   * [Basic usage](#basic-usage)
+      * [Output directory and sample prefix](#output-directory-and-sample-prefix)
+   * [Input](#input)
+      * [FASTQ](README.md#fastq)
+      * [BAM](README.md#bam)
+      * [Custom command](README.md#custom-command)
+      * [Downsampling](README.md#downsampling)
+   * [Preprocessing](#preprocessing)
+      * [Quality scores encoding](README.md#quality-scores-encoding)
+      * [Quality trimming](README.md#quality-trimming)
+      * [Adapter removal](README.md#adapter-removal)
+      * [Low complexity filtering](README.md#low-complexity-filtering)
+      * [Hard-trimming your data](README.md#hard-trimming-your-data)
+      * [Minimum read length](README.md#minimum-read-length)
+   * [Mapping](#mapping)
+      * [Index and length file](README.md#index-and-length-file) 
+      * [Maximum edit distance](README.md#maximum-edit-distance)
+      * [Number of CPUs](README.md#numbers-of-cpus)
+      * [Multiple indexes](README.md#multiple-indexes)
+   * [Taxonomic classification](#taxonomic-classification)
+   * [Reporting](#reporting)
+      * [Coverage histograms](README.md#coverage-histograms)
+      * [Minimum reporting evidence](README.md#minimum-reporting-evidence)
+   * [Output](#output)
+      * [Output directory](README.md#output-directory)
+      * [Merged mapping file](README.md#merged-mapping-file)
+      * [Summary table](README.md#summary-table)
+      * [Report table](README.md#report-table)
+      * [Interactive abundance chart](README.md#interactive-abundance-chart)
+   * [SGE](#sge)
+   * [Dry run](#dry-run)
+* [Quick reference](#quick-reference)
+   * [./taxMaps](#taxmaps-1)
+   * [./taxMaps-taxtbl](#taxmaps-taxtbl)
+   * [./taxMaps-index](#taxmaps-index)
+   * [./bin](#bin)
 
 ## Installation
 #### Dependencies
@@ -111,7 +111,16 @@ $ export PATH=$PATH:{path_to_taxMaps}
 
 Adding line above to `.bash_rc` or `.bash_profile` configuration files will make it permanent.  
 
-## Building the taxonomic table 
+
+## Databases
+
+### Pre-built indexes  
+taxMaps uses pre-built indexes that are available via FTP on the [NYGC public FTP](http://tinyurl.com/krn3e7o) site. These indexes have been compressed using a kmer LCA pre-assignation for several different kmer sizes, which greatly improves mapping efficiency against large databases. To ensure maximum mapping fidelity, you  should pick a kmer size just above your read length or hard-trim down your reads to match the kmer size used in compression. For this, you can use the corresponding `taxMaps` option `-L`. You should also use the `taxonomy.tbl` file provided. 
+
+### Custom indexes
+We strongly recommend the use of pre-built compressed indexes. While we provide scripts to generate taxMaps-compatible indexes, we do not offer any support on it. 
+
+#### Building the taxonomic table 
 taxMaps requires a taxonomic table file for several of its operations. To generate this table you need to download [taxdump.tar.gz](http://tinyurl.com/lj5wkh8) from the NCBI FTP site and extract its contents with the following command:
 
 ```
@@ -126,7 +135,7 @@ $ taxMaps-taxtbl -n names.dmp -t nodes.dmp > taxonomy.tbl
   
 will generate a tab-delimited file named `taxonomy.tbl`, which contains one taxonomic entity per line with the following field order: `TaxId`, `Rank`, `Name` and `PathFromRoot`.  
  
-## Preprocessing and indexing your database
+#### Preprocessing and indexing your custom database
 To generate your indexed database you need to download [gi_taxid_nucl.dmp.gz](http://tinyurl.com/oez34rw) from the NCBI FTP site and extract it using the following command:
 
 ```
@@ -150,9 +159,6 @@ At the end of this process, among others, you should have 4 files:
 * A `{prefix}.gem` index file for `gem-mapper`.  
 
 Generating an index can take from a few minutes to several hours, depending on the size of your database. You can speed it up by running `taxMaps-index` on multiple threads by using the option `-T`.  You can also submit your job to a SGE cluster by specifying a partition/queue with the option `-Q`. The number of slots can be specified using the option `-S`.
-
-### Pre-built indexes  
-You can also use pre-built indexes which are available via FTP on the NYGC public [FTP](http://tinyurl.com/krn3e7o) site. These indexes have been compressed using a kmer LCA pre-assignation for several different kmer sizes, which greatly improves mapping efficiency against large databases. To ensure maximum mapping fidelity, you  should pick a kmer size just above your read length or hard-trim down your reads to match the kmer size used in compression. For this, you can use the corresponding `taxMaps` option `-L`. You should also use the `taxonomy.tbl` file provided.  
 
 ## Running taxMaps
 
@@ -195,6 +201,13 @@ Finally, taxMaps can take custom input commands as long as they write fastq to `
 ```
 $ taxMaps -i "zcat /data/project_x/sample*.fq.gz" ...
 ```  
+  
+##### Downsampling  
+If you wish to downsample your data, you can specify the downsample probability by specifying a float number between 0 and 1 through the option `-D`. For instance, if you want taxMaps to classify 10% of your data, you should use: 
+
+```
+$ taxMaps -f reads.fq -D 0.1 ...
+```  
 
 ### Preprocessing
 
@@ -204,7 +217,7 @@ With taxMaps you can process your data prior to mapping. Controlling the quality
 taxMaps expects quality scores to be encoded in Phred+33 format (see [FASTQ encoding](http://en.wikipedia.org/wiki/FASTQ_format#Encoding)). If your quality data is encoded in Phred+64 format, you should add the `--phred64` flag to your command (usually not required for Illumina 1.8+, Sanger, Roche/454, Ion Torrent, PacBio data). 
 
 ##### Quality trimming  
-Using the option `-q` you can set the threshold for 3' quality-based trimming of your read data. taxMaps will pass this option to `cutadapt`. 
+Using the option `-q` you can set the threshold for 3' quality-based trimming of your read data. taxMaps will pass this option to `cutadapt`. If you wish to remove low quality bases from both ends of the reads, just specify the quality threshold values for the 5' and 3' ends, separed by `,` (e.g. `-q 20,20`). 
 
 ##### Adapter removal  
 To remove adapter sequence, you can pass a string of `cutadapt` options by using the option `-a`. For instance, if you want to remove the adapter sequence `AGATCGGAAGAGC` from both ends of your reads in two passes, you should specify `-a "-b AGATCGGAAGAGC -n 2"`. You can also trim multiple adapter sequences - see [cutadapt user manual](https://cutadapt.readthedocs.org/en/latest/guide.html). You **should not** pass any cutadapt options related to input and output as these will likely cause taxMaps to crash (e.g., `-a "-b AGATCGGAAGAGC -o output.fq"`).
@@ -224,7 +237,7 @@ Finally, with the option `-l` you can control the minimum length a read should h
 In taxMaps, you must specify the database index file with the option `-d`. Just make sure that for every index `{db}.gem` you have the corresponding `{db}.len` in the same directory. 
 
 ##### Maximum edit distance  
-By default taxMaps allows up to 10% edit distance. This threshold can be increased in situations where a greater sensitivity is desired (e.g., viral detection). With the option `-e` you can set the maximum edit distance allowed. You must provide a number between 0 and 1 and edit distance will be considered as a fraction of the read length. For instance, if your read length is 150bp, the following command:
+By default taxMaps allows up to 20% edit distance. This threshold can be decreased in situations where a greater precision is desired. With the option `-e` you can set the maximum edit distance allowed. You must provide a number between 0 and 1 and edit distance will be considered as a fraction of the read length. For instance, if your read length is 150bp, the following command:
 
 ```
 $ taxMaps -f reads.fq -d ncbi.gem -e 0.2 ...
@@ -240,31 +253,22 @@ $ taxMaps -f reads.fq -d ncbi.gem -c 16 ...
 ```
 will use `16` CPUs.  
 
-##### Custom index names  
-Internally taxMaps sets the name of the database as the basename without extension of the index specified by `-d`. You can however set a custom name by using `-n`. This parameter will be used in naming your mapping result files. With the following command:
-
-```
-$ taxMaps -f reads.fq -d GRCh38.gem -e 0.2 -c 16 -n human ...
-```
-your mapping results for `GRCh38.gem` will be have the extension `.human.map`. 
-
-
 ##### Multiple indexes  
 If you want to map against more than one index in a sequential manner, you should provide a `,`-delimited list of index files:
 
 ```
 $ taxMaps -f reads.fq -d phix.gem,human.gem,ncbi.gem ...
 ```
-The command above will first map all reads against `phix.gem`. Then, unmapped reads will be mapped against `human.gem` and, finally, reads that were not mapped will be mapped against the `ncbi.gem` index. When mapping against more than one index, you can still control the abovementioned parameters in a index-specific manner by providing `,`-delimited lists of values for `-e`, `-c` and `-n`:
+The command above will first map all reads against `phix.gem`. Then, unmapped reads will be mapped against `human.gem` and, finally, reads that were not mapped will be mapped against the `ncbi.gem` index. When mapping against more than one index, you can still control the abovementioned parameters in a index-specific manner by providing `,`-delimited lists of values for `-e` and `-c`:
 
 ```
 $ taxMaps -f reads.fq -d phix.gem,human.gem,ncbi.gem \
-          -e 0.1,0.2,0.2 -c 4,16,16 -n phix,human,ncbi ...
+          -e 0.1,0.2,0.2 -c 4,16,16 ...
 ```
 
 ### Taxonomic classification
 
-To run taxMaps, you need to specify through the `-t` option, the path to the taxonomic table generated using `taxMaps-taxtbl`.
+To run taxMaps, you need to specify through the `-t` option, the path to the taxonomic table downloaded from the [NYGC public FTP](http://tinyurl.com/krn3e7o).
 
 For read classification you can choose between three LCA modes:
 * 'single-end' (`-m s`) - reads are classified independently. This is the default option.
@@ -286,9 +290,6 @@ $ taxMaps -f reads.fq -d phix.gem,human.gem,ncbi.gem --cov -x 9606,374840 ...
 
 will not compute any coverage histogram for phiX (`374840`) and human (`9606`) sequences.
 
-##### Lowest taxonomic level  
-By default taxMaps will explore the entire taxonomic tree but you can limit the depth of your reports by setting the lowest reported level with `-r`. This option is turn OFF by default in taxMaps, which will report all leaves. Possible values are: `superkingdom`, `kingdom`, `phylum`, `class`, `order`, `family`, `genus`, `species` and `subspecies`.
-
 ##### Minimum reporting evidence  
 In taxMaps you can also exclude from your report, taxa with few reads assigned. These are usually non-specific hits or mapping artifacts. By default, taxMaps will not report taxa with less than 10 reads assigned per million reads in your sample (`-z 0.00001`). You can also specify a minimum number of reads regardeless of the proportion. For that you should use integer values:
 
@@ -298,15 +299,6 @@ $ taxMaps -f reads.fq -d ncbi.gem -z 15 ...
 
 The command  above will report taxa with at least `15` reads classified as such.
 
-##### Group-specific reports  
-Apart from the "main" report, you can also generate group specific reports. For that, you should specify a list of TaxIds using the option `-u`. taxMaps will generate additional reports where every taxon listed will be at the root. For instance, the following command:
-
-```
-$ taxMaps -f reads.fq -d ncbi.gem -u 2,10239 ...
-```
-
-will generate additional reports for bacteria (TaxId = `2`) and viruses (TaxId = `10239`).
-
 ### Output
 
 ##### Output directory  
@@ -314,17 +306,15 @@ By default, taxMaps will run on the current working directory, but it is strongl
 
 
 The  output directory contains the following subdirectories:
-* `read_data/` - contains either links to your read data file(s) or a `.sh` script with custom input command specified using the option `-i`.
-* `indexes/` - contains the links to the specified indexes as well as to the corresponding length files.
-* `taxonomy/` - where you can find a link to the taxonomy table specified by `-t`.
-* `map/` - in this directory you will find all the `.map` files and a `.map.lca` file with the mapping results plus the taxonomic classification for every read (see below for format) .
-* `out/` - this is where summary results will be written to. It also contains the graphical and tabular reports. 
-* `log/` - where you can find the log files for `cutadapt`, `prinseq`, `GEM` and `samtools`(if your input data is in `bam` format).
+* `txM.{prefix}.base/` - contains either links to your read data file(s) or a `.sh` script with custom input command specified using the option `-i`, all the links to the specified indexes and corresponding length files, and the taxonomy table specified by `-t`.
+* `txM.{prefix}.map/` - in this directory you will find all the `.map` files and a `.map.lca` file with the mapping results plus the taxonomic classification for every read (see below for format) .
+* `txM.{prefix}.out/` - this is where summary results will be written to. It also contains the graphical and tabular reports. 
+* `txM.{prefix}.log/` - where you can find the log files for `cutadapt`, `prinseq`, `GEM` and `samtools`(if your input data is in `bam` format).
 
 In the output directory you will also find a `.sh` file with all commands that taxMaps will run. Also, if you used the `-Q` option for SGE, you will find a `.sge` custom specification file and an additional subdirectory will be created upon submission, containing several files related to the SGE run.
 
 ##### Merged mapping file  
-After mapping, taxMaps will merge all the `.map` files and perform the taxonomic classification of every read, based on the all its best hits. These results can be found in `{prefix}.merged.map.lca` located in `{out_dir}/map/`. The format is an extended [GEM alignment format](http://algorithms.cnag.cat/wiki/FAQ:The_GEM_alignment_format):  
+After mapping, taxMaps will merge all the `.map` files and perform the taxonomic classification of every read, based on the all its best hits. These results can be found in `{prefix}.merged.map.lca` located in `{out_dir}/txM.{prefix}.map/`. The format is an extended [GEM alignment format](http://algorithms.cnag.cat/wiki/FAQ:The_GEM_alignment_format):  
 
 1. `Name` - Read name.  
 2. `Sequence` - Read sequence.  
@@ -342,7 +332,7 @@ After mapping, taxMaps will merge all the `.map` files and perform the taxonomic
 **\*** The last 4 fields are exclusive for paired-end classification modes. 
 
 ##### Summary table  
-taxMaps then summarizes all mapping information into `{prefix}.merged.map.lca.summary` located in `{out_dir}/out/`. This file consists of one-line records for every taxonomic entity identified in the sample or with at least one hit. Here are the fields:
+taxMaps then summarizes all mapping information into `{prefix}.merged.map.lca.summary` located in `{out_dir}/txM.{prefix}.out/`. This file consists of one-line records for every taxonomic entity identified in the sample or with at least one hit. Here are the fields:
 
 1. `TaxId` - NCBI taxon identifier.
 2. `TaxRank` - NCBI taxon rank.
@@ -361,7 +351,7 @@ taxMaps then summarizes all mapping information into `{prefix}.merged.map.lca.su
 15. `CoverageHistogram` - The coverage histogram string follows a *log* progression, with the first value representing the number of uncovered bases, the second - the number of 1x covered bases, the third - the number of 2-3x covered based, the fourth - the number of 4-7x covered bases and so on... The following string `10:6432:456:0:120:0...` means that there were `10` uncovered bases, `6432` bases at 1x coverage, `456` at 2-3x, `0` between 4-7x and `120` between 8 -15x coverage.
 
 ##### Report table  
-In this tab-delimited file (`out/{prefix}.tbl`) you will find the read counts for the classic taxonomic ranks (`kingdom`, `phylum`, `class`, etc...). Read counts for a given taxon are not limited to reads classified as that taxon, but also include all reads mapping to the taxa under it. These are the fields in the report table:
+In this tab-delimited file (`{out_dir}/txM.{prefix}.out/{prefix}.tbl`) you will find the read counts for the classic taxonomic ranks (`kingdom`, `phylum`, `class`, etc...). Read counts for a given taxon are not limited to reads classified as that taxon, but also include all reads mapping to the taxa under it. These are the fields in the report table:
 
 1. `TaxId` - NCBI taxon identifier.
 2. `TaxRank` - NCBI taxon rank
@@ -371,15 +361,11 @@ In this tab-delimited file (`out/{prefix}.tbl`) you will find the read counts fo
 6. `ReadCounts` - Number of reads classified under `TaxName`
 7. `PercentFromTotal` - Corresponding percentage relative to the root of the report.
 
-If you requested specific reports for certain `TaxId`s with the option `-u`, taxMaps will generate a file for each with the extension `.{TaxId}.tbl` . In these case, the last field (`PercentFromTotal`) will refer to the percentage of reads out of the total reads classified under each of the specified `TaxId`s.  
-
 ##### Interactive abundance chart  
 
-Finally, taxMaps generates an independent `.html` document that allows you to explore in an interactive manner your results (`out/{prefix}.krona.html`). For that, you only need a Web browser and internet access. In the interactive HTML5 chart generated using [Krona](http://sourceforge.net/p/krona/home/krona/), taxomic entities are displayed as nested sectors from the top level (center) to the bottom (outward) of the hierarchy. Here is a screenshot:
+Finally, taxMaps generates an independent `.html` document that allows you to explore in an interactive manner your results (`{out_dir/txM.{prefix}.out/{prefix}.krona.html`). For that, you only need a Web browser and internet access. In the interactive HTML5 chart generated using [Krona](http://sourceforge.net/p/krona/home/krona/), taxomic entities are displayed as nested sectors from the top level (center) to the bottom (outward) of the hierarchy. Here is a screenshot:
 
-![image](https://github.com/nygenome/taxmaps/blob/master/doc/img/example_krona.png)  
-
-In case you have requested [group-specific reports](https://github.com/nygenome/taxmaps/blob/master/README.md#group-specific-reports) through the option `-u`, taxMaps will generate a `out/{prefix}.krona.{TaxId}.html` for each `TaxId` specified.
+![image](doc/img/example_krona.png)  
 
 For more information about Krona, see the project [website](http://sourceforge.net/p/krona/home/krona/).
 
@@ -406,46 +392,44 @@ You can do a dry run of taxMaps by using the flag `--dry`. taxMaps will create t
 `-h`,`--help` show this help message and exit   
 
 *Input*  
-`-i` Input command (use absolute paths!). Quoted, with fq on stdout. Interleaved for paired modes (Mandatory). [`STR`]   
-`-f` Input `.fq`, `.fastq`, `.fq.gz` or `.fastq.gz` files. Interleaved for paired modes (Mandatory). [`FILE`]  
-`-b` Input `.bam` file. Requires `.bam.bai` in the same folder (Mandatory). [`FILE`]  
-`-1` Input `.fq`, `.fastq`, `.fq.gz`, `.fastq.gz` read 1 file. In sync with, and of the same sort as, -2 input file for paired modes (Mandatory). [`FILE`]  
-`-2` Input `.fq`, `.fastq`, `.fq.gz`, `.fastq.gz` read 2 file. In sync with, and of the same sort as, -1 input file for paired modes (Mandatory). [`FILE`]  
+`-i` Input command (absolute paths!). Quoted. Interleaved `fq` on `STDOUT`. [`STR, Mandatory | -f | (-1 & -2) | -b`]  
+`-f` Input `fq`, `fastq`, `fq.gz` or `fastq.gz`. Interleaved. [`CSV_FILE_LIST, Mandatory | -i | (-1 & -2) | -b`]  
+`-b` Input `.bam` file. Requires `.bam.bai` in the same folder. [`FILE, Mandatory | -i | -f | (-1 & -2)`]  
+`-1` Input `fq`, `fastq`, `fq.gz` or `fastq.gz` read 1. In sync with, and of the same sort as `-2`. [`CSV_FILE_LIST, Mandatory | -f | -i | -b`]  
+`-2` Input `fq`, `fastq`, `fq.gz` or `fastq.gz` read 2. In sync with, and of the same sort as `-1`. [`CSV_FILE_LIST, Mandatory | -f | -i | -b`]  
+`-D` Downsampling probability. [`FLOAT, 1`]  
 
 *Preprocessing*  
-`-q` Cutadapt quality cutoff value (default = None). [`INT`]  
-`-a` Adapters string. Quoted.  e.g., "-a AGATCGGAAGAGC -n2 "  (default = None). [`STR`]  
-`-l` Minimum read length for mapping (default = 50). [`INT`]  
-`-L` Maximum read length (hard trimmming; default = None). [`INT`]  
-`-w` 5p trim length (hard trimmming; default = None). [`INT`]  
-`-C` Entropy cutoff for low complexity filtering. Use 0 for no filtering (default = 70). [`INT`]  
-`-N` Filter reads with more than N% of 'N' characters. Use 100 for no filtering (default = 4). [`INT`]   
-`--phred64` Quality scores in Phred+64 format (default = False) [`FLAG`]
+`-q` Cutadapt quality cutoff value (default = None). [`INT, `]  
+`-a` Adapters string. Quoted.  e.g., "-a AGATCGGAAGAGC -n2 "  (default = None). [`STR, `]  
+`-l` Minimum read length for mapping. [`INT, 50`]  
+`-L` Maximum read length (hard trimmming). [`INT, `]  
+`-w` 5p trim length (hard trimmming). [`INT, `]  
+`-C` Entropy cutoff for low complexity filtering. Use 0 for no filtering. [`INT, 70`]  
+`-N` Filter reads with more than N% of 'N' characters. Use 100 for no filtering. [`INT, 4`]   
+`--phred64` Quality scores in Phred+64 format. [`FLAG, OFF`]
 
 *Mapping*  
-`-d` Index file(s). CSV (Mandatory). [`FILE_LIST`]  
-`-e` Edit distance(s). CSV. Value(s) between 0 and 1 (default = 0.1). [`FLOAT_LIST`]  
-`-c` Number of CPUs. CSV (default = 1). [`INT_LIST`]  
-`-n` Index name(s). CSV (default = index basename(s) without extension). [`STR_LIST`]
+`-d` Index file(s). CSV. [`FILE_LIST, Mandatory`]  
+`-e` Edit distance(s). CSV. Value(s) between 0 and 1. [`FLOAT_LIST, 0.2`]  
+`-c` Number of CPUs. CSV. [`INT_LIST, 1`]  
 
 *Taxonomy*  
-`-t` Taxonomic table file (Mandatory). [`FILE`]  
-`-m` Taxa determination mode ('s' single-end; 'p' paired-end; 'P' paired-end strict; default = 's'). [`STR`]  
+`-t` Taxonomic table file. [`FILE, Mandatory`]  
+`-m` Taxa determination mode ('s' single-end; 'p' paired-end; 'P' paired-end strict). [`STR, s`]  
 
 *Reporting*  
-`--cov` Compute coverage histograms (default = False). [`FLAG`]  
-`-x` Excluded taxids. CSV (only if --cov flag ON). [`STR_LIST`]  
-`-r` Lowest taxonomic level e.g., 'species' (default = None). [`STR`]  
-`-z` Reporting cutoff (INT or FLOAT < 1; default = 0.00001). [`FLOAT`]  
-`-u` Create additional reports for these taxids. CSV (default = None). [`STR_LIST`]
+`--cov` Compute coverage histograms. [`FLAG, OFF`]  
+`-x` Excluded taxids. CSV (only if --cov flag ON). [`STR_LIST, `]  
+`-z` Reporting cutoff (INT or FLOAT < 1). [`FLOAT, 0.00001`]  
 
 *Miscellaneous*  
-`-p` Sample prefix (default = sample). [`STR`]  
-`-o` Output directory (default = '.'). [`DIR`]  
-`-Q` Cluster queue/partition (default = None). [`STR`]  
-`-S` Cluster slots (default = 20). [`INT`]  
+`-p` Sample prefix. [`STR, sample`]  
+`-o` Output directory. [`DIR, .`]  
+`-Q` Cluster queue/partition. [`STR, `]  
+`-S` Cluster slots (default = 20). [`INT, 20`]  
 
-`--dry` Dry run (default = False) [`FLAG`]
+`--dry` Dry run. [`FLAG, OFF`]
 
 ### ./taxMaps-taxtbl     
 `taxMaps-taxtbl` is a script that generates the taxonomic table required by `taxMaps` containg all taxids, corresponding descriptions and paths-from-root. It writes to `stdout`.  
@@ -454,8 +438,8 @@ You can do a dry run of taxMaps by using the flag `--dry`. taxMaps will create t
 `--version` show program's version number and exit.  
 `-h`,`--help` show this help message and exit.  
 
-`-n` NCBI Taxonomy names.dmp file (Mandatory). [`FILE`]   
-`-t` NCBI Taxonomy nodes.dmp file (Mandatory). [`FILE`]  
+`-n` NCBI Taxonomy names.dmp file. [`FILE, Mandatory`]   
+`-t` NCBI Taxonomy nodes.dmp file. [`FILE, Mandatory`]  
 
 ### ./taxMaps-index
 `taxMaps-index` is a script that formats the FASTA headers and generates the GEM indexes required by `taxMaps`.  
@@ -464,31 +448,34 @@ You can do a dry run of taxMaps by using the flag `--dry`. taxMaps will create t
 `--version` show program's version number and exit.  
 `-h`,`--help` show this help message and exit.  
 
-`-i` Input fasta file (Mandatory). [`FILE`]  
-`-c` Correspondence file gi -> tax file (Mandatory). [`FILE`]  
-`-t` Taxonomy table file (Mandatory). [`FILE`]  
-`-p` Prefix for output files (Mandatory). [`STR`]  
+`-i` Input fasta file. [`FILE, Mandatory`]  
+`-c` Correspondence file gi -> tax file. [`FILE, Mandatory`]  
+`-t` Taxonomy table file. [`FILE, Mandatory`]  
+`-p` Prefix for output files. [`STR, Mandatory`]  
 
-`-T` Number of threads (default = 1). [`INT`]  
-`-Q` Cluster queue/partition (default = None). [`STR`]  
-`-S` Cluster slots (default = 1). [`INT`]  
+`-T` Number of threads. [`INT, 1`]  
+`-Q` Cluster queue/partition. [`STR, `]  
+`-S` Cluster slots. [`INT, 1`]  
 
-`--dry` Dry run (default = False). [`FLAG`]  
+`--dry` Dry run. [`FLAG, OFF`]  
 
 ### ./bin    
-`txM_fastalen` computes the length of FASTA sequences.   
-`txM_fq2gem` converts FASTQ into GEM mapper format.  
-`txM_fqhtrim` trims from the 3' end of the reads down to the specified length.  
-`txM_fqintlv` interleaves read1 and read2 FASTQ files  
-`txM_fqltrim` trims the specified number of bases from the 5' end of reads.  
-`txM_fqminlen` filters reads taht are shorter than the specified read length.  
-`txM_gem2fq` converts GEM mapper format into FASTQ.  
-`txM_gitax` formats FASTA header for taxMaps.  
-`txM_lca` given a GEM mapper output, computes the LCA for all reads, either in sigle-end or paired-end mode.  
-`txM_mapout` filters mapped reads.  
-`txM_mergintlv` merges and interleaves multiple GEM mapper files assuming the pairing order is consistent across files.   
-`txM_report` generates a tables and plots with the number of reads mapping for all represented taxa.  
-`txM_sge` submits jobs specified in a custom format to a SGE cluster.  
-`txM_summary` generates a summary per taxon with hits, including edit distance and coverage histogram. 
+`txM_fastalen` Computes the length of `FASTA` sequences.   
+`txM_fq2gem` Converts `FASTQ` into GEM mapper format.  
+`txM_fqhtrim` Trims from the 3' end of the reads down to the specified length.  
+`txM_fqintlv` Interleaves read1 and read2 FASTQ files.  
+`txM_fqltrim` Trims the specified number of bases from the 5' end of reads.  
+`txM_fqmate` Checks for presence of mates when extracting from `BAM`.   
+`txM_fqminlen` Filters reads taht are shorter than the specified read length.  
+`txM_fqsample` Downsamples `FASTQ`.  
+`txM_gem2fq` Converts GEM mapper format into `FASTQ`.  
+`txM_gitax` Formats `FASTA` header for taxMaps.  
+`txM_lca` Given a GEM mapper output, computes the LCA for all reads, either in sigle-end or paired-end mode.  
+`txM_mapout` Filters mapped reads.  
+`txM_mergintlv` Merges and interleaves multiple GEM mapper files assuming the pairing order is consistent across files.   
+`txM_report` Generates a tables and plots with the number of reads mapping for all represented taxa.  
+`txM_rescore` Rescores alignments from edit to Levenshtein distance.  
+`txM_sge` Submits jobs specified in a custom format to a SGE cluster.  
+`txM_summary` Generates a summary per taxon with hits, including edit distance and coverage histogram. 
 
 

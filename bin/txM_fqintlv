@@ -11,7 +11,7 @@
 # any warranty or guaranteed support whatsoever. The New York Genome Center
 # cannot be responsible for its use, misuse, or functionality.
 
-# Version: 0.1
+# Version: 0.2
 # Author: Andre Corvelo
 
 ################################################################# /COPYRIGHT ###
@@ -23,7 +23,9 @@
 ### MODULES ####################################################################
 
 from optparse import OptionParser
-import sys, gzip
+from sys import stdin, stdout, stderr
+from subprocess import Popen, PIPE, STDOUT
+from itertools import islice
 
 ################################################################### /MODULES ###
 ################################################################################
@@ -33,6 +35,14 @@ import sys, gzip
 ################################################################################
 ### FUNCTIONS ##################################################################
 
+def p2o(ps):
+	while True:
+		r1 = [line for line in islice(ps[0].stdout, 4)]
+		if not r1:
+			break
+		r2 = [line for line in islice(ps[1].stdout, 4)]
+		stdout.write(''.join(r1+r2))
+			
 ################################################################# /FUNCTIONS ###
 ################################################################################
 
@@ -41,32 +51,28 @@ import sys, gzip
 ################################################################################
 ### ARGUMENTS,OPTIONS ##########################################################
 
-parser = OptionParser(usage = "\n%prog [options]", version = "%prog 0.1")
+parser = OptionParser(usage = "\n%prog -1 reads.r1.fq -2 read.r2.fq", version = "%prog v0.2")
 
 parser.add_option(
 	"-1",
 	metavar = "FILE",
 	type = "string",
-	dest = "r1_file",
+	dest = "r1_files",
 	default = None,
-	help = "Read 1 filename (mandatory, .fq, .fastq, .fq.gz, .fastq.gz)"
+	help = "Read 1 filenames. CSVs (mandatory, .fq, .fastq, .fq.gz, .fastq.gz - all of the same type)"
 	)
 
 parser.add_option(
 	"-2",
 	metavar = "FILE",
 	type = "str",
-	dest = "r2_file",
+	dest = "r2_files",
 	default = None,
-	help = "Read 2 filename. (mandatory, .fq, .fastq, .fq.gz, .fastq.gz)"
+	help = "Read 2 filenames. CSVs (mandatory, .fq, .fastq, .fq.gz, .fastq.gz - all of the same type)"
 	)
 
 (opt, args) = parser.parse_args()
-
-if opt.r1_file == None or opt.r2_file == None:
-	parser.print_help()
-	sys.exit(-1)
-
+     
 ######################################################### /ARGUMENTS,OPTIONS ###
 ################################################################################
 
@@ -82,27 +88,15 @@ if opt.r1_file == None or opt.r2_file == None:
 
 ################################################################################
 ### MAIN #######################################################################
-			
-if __name__ == "__main__":
-	if opt.r1_file[-3:] == '.gz':
-		r1_file = gzip.open(opt.r1_file, 'r')
-	else: 
-		r1_file = open(opt.r1_file, 'r')
-	if opt.r2_file[-3:] == '.gz':
-		r2_file = gzip.open(opt.r2_file, 'r')
-	else: 
-		r2_file = open(opt.r2_file, 'r')
-	while True:
-		for t in xrange(4):
-			l1 = r1_file.readline()	
-			sys.stdout.write(l1)
-		for t in xrange(4):
-			l2 = r2_file.readline()
-			sys.stdout.write(l2)
-		if not l1 or not l2:
-			break	
-	r1_file.close()
-	r2_file.close()
+
+if __name__ == '__main__':
+	r1s = opt.r1_files.split(',')
+	r2s = opt.r2_files.split(',')
+	read_cmd = ['cat','zcat'][r1s[0][-3:]=='.gz']
+	ps = []
+	ps.append(Popen([read_cmd] + r1s, stdin=None, stdout=PIPE, shell=False))
+	ps.append(Popen([read_cmd] + r2s, stdin=None, stdout=PIPE, shell=False))	
+	p2o(ps)
 
 ###################################################################### /MAIN ###
 ################################################################################

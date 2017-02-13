@@ -23,8 +23,8 @@
 ### MODULES ####################################################################
 
 from optparse import OptionParser
-import sys
-import Queue
+from sys import stdin, stdout, stderr, exit
+from re import findall
 
 ################################################################### /MODULES ###
 ################################################################################
@@ -33,7 +33,20 @@ import Queue
 
 ################################################################################
 ### FUNCTIONS ##################################################################
+	
+def getdist(aln_str):
+	return sum(int(s) for s in findall(r'(\d+)[\-|\+]', aln_str)) + len(findall(r'[A-z]', aln_str))
 
+
+def rescore(match_str):
+	match_list = match_str.split(',')
+	match_sorted = sorted((getdist(m.split(':')[3]),m) for m in match_list)
+	new_strata = [0] * (match_sorted[-1][0] + 1)
+	for m in match_sorted:
+		new_strata[m[0]] += 1
+	new_match = ','.join(m[1] for m in match_sorted)
+	return ':'.join(str(s) for s in new_strata), new_match
+	
 ################################################################# /FUNCTIONS ###
 ################################################################################
 
@@ -42,10 +55,19 @@ import Queue
 ################################################################################
 ### ARGUMENTS,OPTIONS ##########################################################
 
-parser = OptionParser(usage = "\n%prog [options] [map files...]", version = "%prog v0.2")
+parser = OptionParser(usage="\n%prog -t tax file", version="%prog v0.2")
+
+parser.add_option(
+	"-i",
+	metavar = "FILE",
+	type = "string",
+	dest = "map_file",
+	default = 'stdin',
+	help="Input GEM alignment file (default = 'stdin')"
+	)
 
 (opt, args) = parser.parse_args()
-        
+     
 ######################################################### /ARGUMENTS,OPTIONS ###
 ################################################################################
 
@@ -59,79 +81,25 @@ parser = OptionParser(usage = "\n%prog [options] [map files...]", version = "%pr
 
 
 
-
 ################################################################################
 ### MAIN #######################################################################
 
-if __name__ == "__main__":
-	file_l = sys.argv[1:]
-	file_n = len(file_l)
-	hand_l = []
-	for f in file_l:
-		hand_l.append(open(f, 'r'))
+if __name__ == '__main__':
+	# read map file
+	if opt.map_file != 'stdin':
+		map_file = open(opt.map_file, 'r')
+	else:
+		map_file = stdin
 
-	line_q = Queue.Queue(2*file_n)
-	wait_l = []
-	closed = []
-	for x in xrange(file_n):
-		closed.append(0)
-		l = hand_l[x].readline()
-		if l:
-			p_id = l.split('\t')[0].replace(' ', '/').split('/')[0]
-			p_ind = l.split('\t')[0].replace(' ', '/').split('/')[1][0]
-			line_q.put((x, p_id, l, p_ind))
+	for l in map_file:
+		rid, seq, qual, strata, match_str = l.strip().split('\t')
+		if match_str != '-' and  match_str != '.':
+			new_strata, new_match = rescore(match_str)
+			stdout.write('\t'.join([rid, seq, qual, new_strata, new_match]) + '\n')
 		else:
-			closed[x] = 1
-		l = hand_l[x].readline()
-		if l:
-			p_id = l.split('\t')[0].replace(' ', '/').split('/')[0]
-			p_ind = l.split('\t')[0].replace(' ', '/').split('/')[1][0]
-			line_q.put((x, p_id, l, p_ind))
-		else:
-			closed[x] = 1
-		wait_l.append(None)
-
-
-	while not line_q.empty() or sum(closed) != file_n:
-		r = line_q.get()
-		rx = r[0]
-
-		m = None
-		e = False 
-		for x in xrange(file_n):
-			if wait_l[x] != None and r[1] == wait_l[x][1]:
-				m = x
-			if wait_l[x] == None and x == rx:
-				e = True
-
-		if m != None:
-			for ol in sorted([wait_l[m], r], key = lambda x: x[3]):
-				sys.stdout.write(ol[2])
-				sys.stderr.write(ol[2])
-			wait_l[m] = None
-			l = hand_l[m].readline()
-			if l:
-				p_id = l.split('\t')[0].replace(' ', '/').split('/')[0]
-				p_ind = l.split('\t')[0].replace(' ', '/').split('/')[1][0]
-				line_q.put((m, p_id, l, p_ind))
-			else:
-				closed[m] = 1
-
-			l = hand_l[rx].readline()
-			if l:
-				p_id = l.split('\t')[0].replace(' ', '/').split('/')[0]
-				p_ind = l.split('\t')[0].replace(' ', '/').split('/')[1][0]
-				line_q.put((rx, p_id, l, p_ind))
-			else:
-				closed[rx] = 1
-		elif m == None and e:
-			wait_l[rx] = r
-		else:
-			line_q.put(r)
-		
-
-
-
+			stdout.write(l)
+	if opt.map_file != 'stdin':
+		map_file.close()
 
 ###################################################################### /MAIN ###
 ################################################################################

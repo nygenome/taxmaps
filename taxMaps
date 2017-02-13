@@ -11,7 +11,7 @@
 # any warranty or guaranteed support whatsoever. The New York Genome Center
 # cannot be responsible for its use, misuse, or functionality.
 
-# Version: 0.1
+# Version: 0.2
 # Author: Andre Corvelo
 
 ################################################################# /COPYRIGHT ###
@@ -23,7 +23,7 @@
 ### MODULES ####################################################################
 
 from optparse import OptionParser, OptionGroup
-import sys, os, errno, commands
+import sys, os, errno, commands, uuid
 
 ################################################################### /MODULES ###
 ################################################################################
@@ -47,6 +47,9 @@ def rp(path,start):
 def bn(path):
 	return os.path.basename(path)
 
+def missing_files(csv_file_list):
+	return sum(not os.path.isfile(f) for f in csv_file_list.split(','))
+
 ################################################################# /FUNCTIONS ###
 ################################################################################
 
@@ -55,7 +58,7 @@ def bn(path):
 ################################################################################
 ### ARGUMENTS,OPTIONS ##########################################################
 
-parser = OptionParser(usage = "\n%prog options", version = "%prog v0.1")
+parser = OptionParser(usage = "\n%prog options", version = "%prog v0.2")
 
 # input
 parser_input = OptionGroup(parser, "Input (MANDATORY one of the following: -i, -f, -b or (-1 and -2)")
@@ -103,6 +106,15 @@ parser_input.add_option(
 	dest = "i_fq_2",
 	default = None,
 	help = "Input .fq, .fastq, .fq.gz, .fastq.gz read 2 file. In sync with, and of the same sort as, -1 input file for paired modes (MANDATORY)"
+	)
+
+parser_input.add_option(
+	"-D",
+	metavar = "FLOAT",
+	type = "string",
+	dest = "i_sprob",
+	default = "1",
+	help = "Downsampling probability (default = 1 = No sampling)"
 	)
 
 parser.add_option_group(parser_input)
@@ -201,8 +213,8 @@ parser_mapping.add_option(
 	metavar = "INT/FLOAT_LIST",
 	type = "string",
 	dest = "m_edits",
-	default = None,
-	help = "Edit distances. CSV (INT or FLOAT<1; default = 0.1)"
+	default = '0.2',
+	help = "Edit distances. CSV (INT or FLOAT<1; default = 0.2)"
 	)
 
 parser_mapping.add_option(
@@ -210,17 +222,8 @@ parser_mapping.add_option(
 	metavar = "INT_LIST",
 	type = "string",
 	dest = "m_cpus",
-	default = None,
+	default = '1',
 	help = "Number of CPUs. CSV (default = 1)"
-	)
-
-parser_mapping.add_option(
-	"-n",
-	metavar = "STR_LIST",
-	type = "string",
-	dest = "m_names",
-	default = None,
-	help = "Index names. CSV (default = index basename(s) without extension)"
 	)
 
 parser.add_option_group(parser_mapping)
@@ -269,30 +272,12 @@ parser_rep.add_option(
 	)
 
 parser_rep.add_option(
-	"-r",
-	metavar = "STR",
-	type = "string",
-	dest = "r_level",
-	default = None,
-	help = "Lowest taxonomic level e.g. 'species' (default = None)"
-	)
-
-parser_rep.add_option(
 	"-z",
 	metavar = "FLOAT",
 	type = "string",
 	dest = "r_cutoff",
-	default = '0.00001',
-	help = "Reporting cutoff (INT or FLOAT<1; default = 0.00001)"
-	)
-
-parser_rep.add_option(
-	"-u",
-	metavar = "STR_LIST",
-	type = "string",
-	dest = "r_detail",
-	default = None,
-	help = "Create additional reports for these taxids. CSV (default = None)"
+	default = '1',
+	help = "Reporting cutoff (INT or FLOAT<1; default = 1)"
 	)
 
 parser.add_option_group(parser_rep)
@@ -305,8 +290,8 @@ parser_misc.add_option(
 	metavar = "STR",
 	type = "string",
 	dest = "m_prefix",
-	default = "sample",
-	help = "Sample prefix (default = sample)"
+	default = str(uuid.uuid4())[:8],
+	help = "Sample prefix (default = random 8-char UUID)"
 	)
 
 parser_misc.add_option(
@@ -347,107 +332,88 @@ parser_misc.add_option(
 
 parser.add_option_group(parser_misc)
 
-
 (opt, args) = parser.parse_args()
 
 
-ecounter = 0
+### check options
+error_list = []
+warning_list = []
+
 # input
+input_list = []
 if not opt.i_comm and not opt.i_fq and not opt.i_bam and (not opt.i_fq_1 or not opt.i_fq_2):
-	sys.stdout.write('\nERROR: Missing input [-i, -f, -b, -1, -2]')
-	ecounter += 1 
-else:
-	icounter = 0
-	inputs = []
-	if opt.i_comm:
-		icounter += 2 
-		inputs.append('-i ' + opt.i_comm)
-	if opt.i_fq:
-		icounter += 2 
-		inputs.append('-f ' + opt.i_fq)
-	if opt.i_bam:
-		icounter += 2 
-		inputs.append('-b ' + opt.i_bam)
-	if opt.i_fq_1:
-		icounter += 1 
-		inputs.append('-1 ' + opt.i_fq_1)
-	if opt.i_fq_2:
-		icounter += 1 
-		inputs.append('-2 ' + opt.i_fq_2)
-	if icounter > 2:
-		ecounter += 1
-		sys.stdout.write('\nERROR: Too many inputs [' + ' '.join(inputs) + ']')
+	error_list.append('ERROR: Missing valid input [-i | -b | -f | (-1 & -2)]')
+if opt.i_comm:
+	input_list.append('-i')
+if opt.i_fq:
+	if missing_files(opt.i_fq):
+		error_list.append('ERROR: File(s) not found in [-f ' + opt.i_fq + ']')
 	else:
-		if opt.i_fq:
-			if not os.path.isfile(opt.i_fq):
-				sys.stdout.write('\nERROR: Specified input file \'' + opt.i_fq + '\' does not exist [-f ' + opt.i_fq + ']')
-				ecounter += 1
-		if opt.i_bam:
-			if not os.path.isfile(opt.i_bam):
-				sys.stdout.write('\nERROR: Specified input file \'' + opt.i_bam + '\' does not exist [-b ' + opt.i_bam + ']')
-				ecounter += 1
-			if not os.path.isfile(opt.i_bam + '.bai'):
-				sys.stdout.write('\nERROR: Accessory index file \'' + opt.i_bam + '.bai\' does not exist [-b ' + opt.i_bam + ']')
-				ecounter += 1
-			
-		if opt.i_fq_1:
-			if not os.path.isfile(opt.i_fq_1):
-				sys.stdout.write('\nERROR: Specified input file \'' + opt.i_fq_1 + '\' does not exist [-1 ' + opt.i_fq_1 + ']')
-				ecounter += 1 
-		if opt.i_fq_2:
-			if not os.path.isfile(opt.i_fq_2):
-				sys.stdout.write('\nERROR: Specified input file \'' + opt.i_fq_2 + '\' does not exist [-2 ' + opt.i_fq_2 + ']')
-				ecounter += 1 
+		input_list.append('-f')
+if opt.i_bam:
+	if missing_files(opt.i_bam):
+		error_list.append('ERROR: File(s) not found in [-b ' + opt.i_bam + ']')
+	else:
+		input_list.append('-b')
+if opt.i_fq_1 and opt.i_fq_2:
+	if len(opt.i_fq_1.split(',')) != len(opt.i_fq_2.split(',')):
+		error_list.append('ERROR: Different number of R1 an R2 files [-1 ' + opt.i_fq_1 + ' -2 ' + opt.i_fq_2 + ']')
+	else:
+		if missing_files(opt.i_fq_1) or missing_files(opt.i_fq_2):
+			error_list.append('ERROR: File(s) not found in [-1 ' + opt.i_fq_1 + ' -2 ' + opt.i_fq_2 + ']')
+		else:
+			input_list.append('(-1 & -2)')
+if len(input_list) > 1:
+	error_list.append('ERROR: Too many inputs [' + ' & '.join(input_list) + ']')
 		
+	
 # mapping
-if not opt.m_indices:
-	sys.stdout.write('\nERROR: Missing index(ices) [-d]')
-	ecounter += 1
-else:
-	for i in opt.m_indices.split(','):
-		if not os.path.isfile(i):
-			sys.stdout.write('\nERROR: Specified index \'' + i + '\' file does not exist [-d ' + opt.m_indices + ']')
-			ecounter += 1 
+n_indexes = 0
+if opt.m_indices:
+	if missing_files(opt.m_indices):
+		error_list.append('ERROR: File(s) not found in [-d ' + opt.m_indices + ']')
+	else:
+		n_indexes = len(opt.m_indices.split(','))
+if not n_indexes:
+	error_list.append('ERROR: Missing valid index(es) [-d]')
 
-if opt.m_edits:
-	if len(opt.m_edits.split(',')) != len(opt.m_indices.split(',')):
-			sys.stdout.write('\nERROR: Number of specified edit distances does not match number of specified indices [-e ' + opt.m_edits + ' given -d ' + opt.m_indices + ']')
-			ecounter += 1 
+n_dist = len(opt.m_edits.split(','))
+if n_dist != n_indexes and n_indexes:
+	if n_dist == 1 :
+		warning_list.append('WARNING: Setting the maximum edit distance for all indexes [-e ' + ','.join([opt.m_edits]*n_indexes) + ']')
+	else:
+		error_list.append('ERROR: ' + str(n_dist) + ' distances specified [-e ' + opt.m_edits + '], incompatible with ' + str(n_indexes) + ' indexes [-d ' + opt.m_indices + ']')
 
-if opt.m_cpus:
-	if len(opt.m_cpus.split(',')) != len(opt.m_indices.split(',')):
-			sys.stdout.write('\nERROR: Number of specified CPUs does not match number of specified indices [-c ' + opt.m_cpus + ' given -d ' + opt.m_indices + ']')
-			ecounter += 1 
-		
-if opt.m_names:
-	if len(opt.m_names.split(',')) != len(opt.m_indices.split(',')):
-			sys.stdout.write('\nERROR: Number of specified names does not match number of specified indices [-n ' + opt.m_names + ' given -d ' + opt.m_indices + ']')
-			ecounter += 1 
+n_cpus = len(opt.m_cpus.split(','))
+if n_cpus != n_indexes and n_indexes:
+	if n_cpus == 1 :
+		warning_list.append('WARNING: Setting the number of CPUs for all indexes [-c ' + ','.join([opt.m_cpus]*n_indexes) + ']')
+	else:
+		error_list.append('ERROR: ' + str(n_cpus) + ' CPU specifications [-c ' + opt.m_cpus + '], incompatible with ' + str(n_indexes) + ' indexes [-d ' + opt.m_indices + ']')  
 
 
 # taxonomy
-if not opt.t_table:
-	sys.stdout.write('\nERROR: Missing taxonomic table [-t]')
-	ecounter += 1
+if opt.t_table:
+	if missing_files(opt.t_table):
+		error_list.append('ERROR: File not found [-t ' + opt.t_table + ']')
 else:
-	if not os.path.isfile(opt.t_table):
-		sys.stdout.write('\nERROR: Specified taxonomic table file \'' + opt.t_table + '\' does not exist [-t ' + opt.t_table + ']')
-		ecounter += 1 
-	
+	error_list.append('ERROR: Missing taxonomic table [-t]')
+
+
 if opt.t_mode not in ['s', 'p', 'P']:
-	sys.stdout.write('\nERROR: Invalid mode [-m ' + opt.t_mode + ']')
-	ecounter += 1 
+	error_list.append('ERROR: Invalid mode [-m ' + opt.t_mode + ']')
+
 	
 # misc 
 if opt.m_queue:
 	if opt.m_queue not in commands.getoutput('qstat -g c | egrep "CLUSTER|\--" -v | awk \'{print $1}\'').split('\n'): 
-		sys.stdout.write('\nERROR: Specified queue does not exist [-q ' + opt.m_queue + ']')
+		error_list.append('ERROR: Specified queue does not exist [-q ' + opt.m_queue + ']')
 		ecounter += 1 
 
 
-
-if ecounter:
-	sys.stdout.write('\n\n')
+sys.stderr.write('\n'.join(warning_list) + '\n')
+if error_list:
+	sys.stderr.write('\n'.join(error_list) + '\n\n')
 	parser.print_help()
 	exit(-1)
   
@@ -471,31 +437,47 @@ if __name__ == '__main__':
 	# base dirs
 	module_dir = os.path.abspath(os.path.dirname(__file__))
 	start_dir = os.getcwd()
+	
+	prefix = opt.m_prefix
+
 	run_dir = os.path.abspath(opt.m_outdir)	
 	mkdir_p(run_dir)
 
+	res_dir = run_dir + '/txM.' + prefix + '.base'
+	mkdir_p(res_dir)
+
+	log_dir = run_dir + '/txM.' + prefix + '.log'
+	mkdir_p(log_dir)
+
+	map_dir = run_dir + '/txM.' + prefix + '.map'
+	mkdir_p(map_dir)
+
+	out_dir = run_dir + '/txM.' + prefix + '.out'
+	mkdir_p(out_dir)
+
+
 	# input
-	data_dir = run_dir + '/read_data'
-	mkdir_p(data_dir)
 	if opt.i_fq:
-		fq_file = os.path.abspath(opt.i_fq)
-		fq_lnk = data_dir + '/' + bn(fq_file)
-		os.system(' '.join(['ln', '-s', fq_file, fq_lnk]))
+		fq_files = [os.path.abspath(fq_file) for fq_file in opt.i_fq.split(',')]
+		fq_lnks = [res_dir + '/' + bn(fq_file) for fq_file in fq_files]
+		for x in xrange(len(fq_files)):
+			os.system(' '.join(['ln', '-s', fq_files[x], fq_lnks[x]]))
 	elif opt.i_bam:
 		bam_file = os.path.abspath(opt.i_bam)
-		bam_lnk = data_dir + '/' + bn(bam_file)
+		bam_lnk = res_dir + '/' + bn(bam_file)
 		os.system(' '.join(['ln', '-s', bam_file, bam_lnk]))
-		os.system(' '.join(['ln', '-s', bam_file + '.bai', bam_lnk + '.bai']))
 	elif opt.i_fq_1 and opt.i_fq_2:
-		fq1_file = os.path.abspath(opt.i_fq_1)
-		fq1_lnk = data_dir + '/' + bn(fq1_file)
-		os.system(' '.join(['ln', '-s', fq1_file, fq1_lnk]))
-		fq2_file = os.path.abspath(opt.i_fq_2)
-		fq2_lnk = data_dir + '/' + bn(fq2_file)
-		os.system(' '.join(['ln', '-s', fq2_file, fq2_lnk]))
+		fq1_files = [os.path.abspath(fq1_file) for fq1_file in opt.i_fq_1.split(',')]
+		fq1_lnks = [res_dir + '/' + bn(fq1_file) for fq1_file in fq1_files]
+		for x in xrange(len(fq1_files)):
+			os.system(' '.join(['ln', '-s', fq1_files[x], fq1_lnks[x]]))
+		fq2_files = [os.path.abspath(fq2_file) for fq2_file in opt.i_fq_2.split(',')]
+		fq2_lnks = [res_dir + '/' + bn(fq2_file) for fq2_file in fq2_files]
+		for x in xrange(len(fq2_files)):
+			os.system(' '.join(['ln', '-s', fq2_files[x], fq2_lnks[x]]))
 	elif opt.i_comm:
 		comm_str = opt.i_comm
-		comm_file = open(data_dir + '/input_stream.sh', 'w')
+		comm_file = open(res_dir + '/input_stream.sh', 'w')
 		comm_file.write('#!/bin/sh\n' + comm_str + ' > input_stream.fq\n')
 		comm_file.close()
 
@@ -508,42 +490,31 @@ if __name__ == '__main__':
 	q_offset = opt.p_qoff
 
 	# mapping
-	ind_dir = run_dir + '/indexes'
-	mkdir_p(ind_dir)
-	
-	index_files = opt.m_indices.split(',')
-	
-	len_files = map(lambda x: '.'.join(x.split('.')[:-1]) + '.len', index_files)
-	
-	if opt.m_names:
-		index_names = opt.m_names.split(',')
-	else:
-		index_names = map(lambda x : '.'.join(os.path.basename(x).split('.')[:-1]), index_files.split(','))
-	
-	if opt.m_edits:
-		index_edits = opt.m_edits.split(',')
-	else:
-		index_edits = ['0.1']*len(index_names)
-	max_edit = str(max(map(lambda x: float(x),index_edits)))
+   	index_files = opt.m_indices.split(',')
+   	len_files = ['.'.join(f.split('.')[:-1]) + '.len' for f in index_files]
 
-	if opt.m_cpus:
-		index_cpus = opt.m_cpus.split(',')
-	else:
-		index_cpus = ['1']*len(index_names)
+	index_names = ['.'.join(os.path.basename(f).split('.')[:-1]) for f in index_files]
 	
+	index_edits = opt.m_edits.split(',')
+	if len(index_edits) == 1:
+		index_edits = [index_edits[0]]*len(index_names)
+	max_edit = str(max([float(x) for x in index_edits]))
+
+	index_cpus = opt.m_cpus.split(',')
+	if len(index_cpus) == 1:
+		index_cpus = [index_cpus[0]]*len(index_names)
+		
 	index_lnks = []
 	len_lnks = []
 	for i in xrange(len(index_names)):
-		index_lnks.append(ind_dir + '/' + bn(index_files[i]))
-		len_lnks.append(ind_dir + '/' + bn(len_files[i]))
+		index_lnks.append(res_dir + '/' + bn(index_files[i]))
+		len_lnks.append(res_dir + '/' + bn(len_files[i]))
 		os.system(' '.join(['ln', '-s', os.path.abspath(index_files[i]), index_lnks[i]]))
 		os.system(' '.join(['ln', '-s', os.path.abspath(len_files[i]), len_lnks[i]]))
 	
 	# taxonomy
-	tax_dir = run_dir + '/taxonomy'
-	mkdir_p(tax_dir)
 	tax_file = os.path.abspath(opt.t_table)
-	tax_lnk = tax_dir + '/' + bn(tax_file)
+	tax_lnk = res_dir + '/' + bn(tax_file)
 	os.system(' '.join(['ln', '-s', tax_file, tax_lnk]))
 	
 	det_mode = opt.t_mode
@@ -552,24 +523,13 @@ if __name__ == '__main__':
    	exc_taxa = opt.r_exc
 	
 	# report
-	low_level = opt.r_level
 	rep_cutoff = opt.r_cutoff
-	if opt.r_detail:
-		tax_detail = opt.r_detail.split(',')
 
 	# miscellaneous
-	prefix = opt.m_prefix
 	sge_queue = opt.m_queue
 	sge_slots = opt.m_slots
 	dry_run = opt.m_dry
 	
-	# out dirs
-	map_dir = run_dir + '/map'
-	mkdir_p(map_dir)
-	out_dir = run_dir + '/out'
-	mkdir_p(out_dir)
-	log_dir = run_dir + '/log'
-	mkdir_p(log_dir)
 	
 	#sh script and pipe
 	sh_filename = run_dir + '/txM.' + prefix + '.sh'
@@ -588,20 +548,27 @@ if __name__ == '__main__':
 		input_command = comm_str
 	elif opt.i_fq:
 		if opt.i_fq[-3:] == '.gz':
-			input_command = 'zcat ' + rp(fq_lnk, run_dir)
+			input_command = 'zcat ' + ' '.join([rp(fq_lnk, run_dir) for fq_lnk in fq_lnks]) 
 		else:
-			input_command = 'cat ' + rp(fq_lnk, run_dir)
+			input_command = 'cat ' + ' '.join([rp(fq_lnk, run_dir) for fq_lnk in fq_lnks])
 	elif opt.i_bam:
 		stview_log = rp(log_dir + '/' + prefix + '.st_view.err', run_dir)
 		stbam2fq_log = rp(log_dir + '/' + prefix + '.st_bam2fq.err', run_dir)
 		bam = rp(bam_lnk, run_dir)
 		if opt.t_mode == 's':
-			input_command = 'samtools view -f4 -F256 ' + bam + ' -b 2> ' + stview_log + ' | samtools bam2fq - 2> ' + stbam2fq_log
+			input_command = 'samtools view -f4 -F256 ' + bam + ' -b 2> ' + stview_log + ' \\\n\t| samtools bam2fq - 2> ' + stbam2fq_log
 		else:
-			input_command = 'samtools view -f12 -F256 ' + bam + ' -b 2> ' + stview_log + ' | samtools bam2fq - 2> ' + stbam2fq_log
+			input_command = 'samtools view -f12 -F256 ' + bam + ' -b 2> ' + stview_log + ' \\\n\t| samtools bam2fq - 2> ' + stbam2fq_log
+			input_command += ' \\\n\t| txM_fqmate'
 	elif opt.i_fq_1 and opt.i_fq_2:
-		input_command = 'txM_fqintlv -1 ' + rp(fq1_lnk, run_dir) + ' -2 ' + rp(fq2_lnk, run_dir)
-	input_command += ' | '
+		input_command = 'txM_fqintlv -1 ' + ','.join([rp(fq1_lnk, run_dir) for fq1_lnk in fq1_lnks]) + ' -2 ' + ','.join([rp(fq2_lnk, run_dir) for fq2_lnk in fq2_lnks])
+	input_command += ' \\\n\t| '
+	
+	if opt.i_sprob != '1':
+		if opt.t_mode == 's':
+			input_command += 'txM_fqsample -s ' + opt.i_sprob + ' \\\n\t| '
+		else:
+			input_command += 'txM_fqsample -p -s ' + opt.i_sprob + ' \\\n\t| '
 			
 	# preprocessing
 	filt_out = rp(map_dir + '/' + prefix + '.filtout.map', run_dir)
@@ -616,13 +583,13 @@ if __name__ == '__main__':
 			prep_command += '-q ' + cutadapt_qual + ' '
 		if q_offset:
 			prep_command += '--quality-base=64 '
-		prep_command += '2> ' + cutadapt_log + ' | '
+		prep_command += '2> ' + cutadapt_log + ' \\\n\t| '
 	if leftt_len:
-		prep_command += 'txM_fqltrim -l ' + leftt_len + ' | '
+		prep_command += 'txM_fqltrim -l ' + leftt_len + ' \\\n\t| '
 	if max_rlen:
-		prep_command += 'txM_fqhtrim -l ' + max_rlen + ' | '
+		prep_command += 'txM_fqhtrim -l ' + max_rlen + ' \\\n\t| '
 	if min_rlen:
-		prep_command += 'txM_fqminlen -m ' + min_rlen + ' 2> ' + filt_out + ' | '
+		prep_command += 'txM_fqminlen -m ' + min_rlen + ' 2> ' + filt_out + ' \\\n\t| '
 	#low complexity and Ns
 	if opt.p_lowc or opt.p_nrem != 100:
 		prinseq_log = rp(log_dir + '/' + prefix + '.prins.err', run_dir)
@@ -637,7 +604,7 @@ if __name__ == '__main__':
 			prep_command += '-ns_max_p ' + str(opt.p_nrem) + ' '
 		if q_offset:
 			prep_command += '-phred64 '
-		prep_command += '2> ' + prinseq_log + ' | '
+		prep_command += '2> ' + prinseq_log + ' \\\n\t| '
 
 	# mapping
 	gem_command = 'gem-mapper -q ignore --fast-mapping'
@@ -649,10 +616,10 @@ if __name__ == '__main__':
 		map_cpus = index_cpus[i]
 		map_out = rp(map_dir + '/' + prefix + '.' + index_names[i] + '.map', run_dir)
 		out_files.append(map_out)
-		map_str = gem_command + ' '.join([' -I', map_index, '-m', map_dist, '-e', map_dist, '-T', map_cpus, '2>', map_log, '| '])
+		map_str = gem_command + ' '.join([' -I', map_index, '-m', map_dist, '-e', map_dist, '-T', map_cpus, '2>', map_log, ' \\\n\t| txM_rescore \\\n\t| '])
 		map_str += 'txM_mapout 2> ' + map_out 
 		map_commands.append(map_str)
-	map_lnker = ' | ' + 'txM_gem2fq | ' 
+	map_lnker = ' \\\n\t| ' + 'txM_gem2fq \\\n\t| ' 
 	map_command = map_lnker.join(map_commands)
 	map_out = rp(map_dir + '/' + prefix + '.unmapped.map', run_dir)
 	out_files.append(map_out)
@@ -660,7 +627,7 @@ if __name__ == '__main__':
 	
 	#parse low complexity and Ns
 	if opt.p_lowc or opt.p_nrem != 100:
-		lc_command = 'cat ' + prinseq_out + '.fastq | txM_fq2gem > ' + prinseq_out2 + ' ; '
+		lc_command = 'cat ' + prinseq_out + '.fastq \\\n\t| txM_fq2gem > ' + prinseq_out2 + ' \n\n'
 		lc_command += 'rm ' + prinseq_out + '.fastq'
 
 	# taxonomy
@@ -669,32 +636,29 @@ if __name__ == '__main__':
 	else:
 		tax_command = 'txM_mergintlv '
 	tax_command += ' '.join(out_files)
-	tax_command += ' 2> /dev/null | ' 
+	tax_command += ' 2> /dev/null \\\n\t| ' 
 	tax_command +=  'txM_lca '
 	tax_command += '-t ' + rp(tax_lnk, run_dir) + ' '
 	if det_mode == 'p' or det_mode == 'P':
 		tax_command += '-p '
 	tax_command += '2> ' + rp(map_dir + '/' + prefix + '.merged.map.lca', run_dir)
-	tax_command += ' | '
+	tax_command += ' \\\n\t| '
 	tax_command += 'txM_summary '
 	tax_command += '-t ' + rp(tax_lnk, run_dir) + ' '
 	tax_command += '-e ' + max_edit + ' '
 	if comp_coverage:
 		tax_command += '-c '
-#		tax_command += '-l ' + rp(len_lnk, run_dir) + ' '
-		tax_command += '-l ' + ','.join(map(lambda x : rp(x, run_dir), len_lnks)) + ' ' 
+		tax_command += '-l ' + ','.join([rp(x, run_dir) for x in len_lnks]) + ' ' 
 		if exc_taxa:
 			tax_command += '-x ' + exc_taxa + ' '
 	tax_command += '2> /dev/null > ' + rp(out_dir + '/' + prefix + '.merged.map.lca.summary', run_dir)
 	
 	# reporting
-	rep_command = 'cat ' + rp(out_dir + '/' + prefix + '.merged.map.lca.summary', out_dir) + ' | '
+	rep_command = 'cat ' + rp(out_dir + '/' + prefix + '.merged.map.lca.summary', out_dir) + ' \\\n\t| '
 	rep_command += 'txM_report '
 	rep_command += '-t ' + rp(tax_lnk, out_dir) + ' '
 	rep_command += '-m ' + det_mode + ' '
 	rep_command += '-c ' + rep_cutoff + ' '
-	if low_level:
-		rep_command += '-l ' + low_level + ' '
 	rep_command += '-o ' + prefix + ' '
 
 	sh_file.write(input_command + prep_command + map_command + '\n\n')
@@ -702,22 +666,7 @@ if __name__ == '__main__':
 		sh_file.write(lc_command + '\n\n')
 	sh_file.write(tax_command + '\n\n')
 	sh_file.write('cd ' + rp(out_dir, run_dir) +'\n')
-	sh_file.write(rep_command + '\n')
-	
-	if opt.r_detail:
-		for tax in tax_detail:
-			detail_command = 'cat ' + rp(out_dir + '/' + prefix + '.merged.map.lca.summary', out_dir) + ' | '
-			detail_command += 'txM_report '
-			detail_command += '-t ' + rp(tax_lnk, out_dir) + ' '
-			detail_command += '-m ' + det_mode + ' '
-			detail_command += '-c ' + rep_cutoff + ' '
-			if low_level:
-				detail_command += '-l ' + low_level + ' '
-			detail_command += '-o ' + prefix + '.' + tax + ' '
-			detail_command += '-u ' + tax
-			
-			sh_file.write(detail_command + '\n')
-			
+	sh_file.write(rep_command + '\n')				
 	sh_file.close()   
 	
 	if sge_queue:

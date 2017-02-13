@@ -11,7 +11,7 @@
 # any warranty or guaranteed support whatsoever. The New York Genome Center
 # cannot be responsible for its use, misuse, or functionality.
 
-# Version: 0.1
+# Version: 0.2
 # Author: Andre Corvelo
 
 ################################################################# /COPYRIGHT ###
@@ -42,7 +42,7 @@ import math, os
 ################################################################################
 ### ARGUMENTS,OPTIONS ##########################################################
 
-parser = OptionParser(usage="\n%prog -t tax file", version="%prog 0.1")
+parser = OptionParser(usage="\n%prog -t tax file", version="%prog v0.2")
 
 parser.add_option(
 	"-i",
@@ -67,8 +67,8 @@ parser.add_option(
 	metavar = "FLOAT",
 	type = "float",
 	dest = "cutoff",
-	default = 0.00001,
-	help = "Reporting cutoff (if < 1: minimum fraction from the total number reads or pairs ; if >= 1: minimum number of reads or pairs; default = 0.00001)"
+	default = 1,
+	help = "Reporting cutoff (if < 1: minimum fraction from the total number reads or pairs ; if >= 1: minimum number of reads or pairs; default = 1)"
 	)
 
 parser.add_option(
@@ -89,27 +89,9 @@ parser.add_option(
 	help = "Output prefix (Mandatory)"
 	)
 
-parser.add_option(
-	"-l",
-	metavar = "STR",
-	type = "string",
-	dest = "max_level",
-	default = None,
-	help = "Lowest taxonomic level e.g. 'species' (default = None)"
-	)
-
-parser.add_option(
-	"-u",
-	metavar = "STR",
-	type = "string",
-	dest = "under",
-	default = None,
-	help = "Only report taxa under this taxid (default = None)"
-	)
-
 (opt, args) = parser.parse_args()
 
-if opt.tax_file == None or opt.cutoff == 0 or opt.d_mode not in ['s', 'p', 'P'] or opt.out_prefix == None:
+if opt.tax_file == None or opt.d_mode not in ['s', 'p', 'P'] or opt.out_prefix == None:
 	parser.print_help()
 	exit(-1)
      
@@ -120,19 +102,6 @@ if opt.tax_file == None or opt.cutoff == 0 or opt.d_mode not in ['s', 'p', 'P'] 
 
 ################################################################################
 ### CONSTANTS ##################################################################
-
-levels = ['subspecies',
-		  'species',
-		  'genus',
-		  'family',
-		  'order',
-		  'class',
-		  'phylum',
-		  'kingdom',
-		  'superkingdom'
-		  ]
-
-specials = ['0', '1', '-']
 
 ################################################################# /CONSTANTS ###
 ################################################################################
@@ -149,11 +118,13 @@ if __name__ == '__main__':
 	for l in tax_file:
 		la = l.strip().split('\t')
 		la[2] = la[2].replace(':','-')
-		tax_d[la[0]] = la + [0, None, 0, [], False,0]
-	tax_d['0'] = ['0', 'no rank', 'unmapped', '0', 0, None, 0, [], False,0]
-	tax_d['1'] = ['1', 'no rank', 'mapped', '1', 0, None, 0, [], False,0]
-	tax_d['-'] = ['-', 'no rank', 'filtered out', '0:-', 0, None, 0, [], False,0]
+		la[3] = la[3].split(':')
+		tax_d[la[0]] = la + [0, 0, 0]
 	tax_file.close()
+	tax_d['0'] = ['0', 'no rank', 'Unclassified', ['0'], 0, 0, 0]
+	tax_d['1'] = ['1', 'no rank', 'Classified', ['1'], 0, 0, 0]
+	tax_d['-'] = ['-', 'no rank', 'Filtered out', ['0','-'], 0, 0, 0]
+	
 	
 	# read rep file
 	if opt.rep_file != 'stdin':
@@ -163,61 +134,47 @@ if __name__ == '__main__':
 	for l in rep_file:
 		la = l.strip().split('\t')
 		tax_id = la[0] 
-		path = tax_d[tax_id][3].split(':')
-		if not opt.under or opt.under in path:
-			if opt.d_mode == 's':
-				counts = int(la[4])
-			elif opt.d_mode == 'p':
-				counts = int(la[7]) + int(la[8])
-			elif opt.d_mode == 'P':
-				counts = int(la[7])
-			tax_d[tax_id][9] = counts
-			for node in path:
-				if not opt.under or opt.under in tax_d[node][3].split(':'):
-					tax_d[node][4] += counts
+		path = tax_d[tax_id][3]
+		if opt.d_mode == 's':
+			counts = int(la[4])
+		elif opt.d_mode == 'p':
+			counts = int(la[7]) + int(la[8])
+		elif opt.d_mode == 'P':
+			counts = int(la[7])
+		tax_d[tax_id][4] = counts
+		for node in path:
+			tax_d[node][5] += counts
+			tax_d[node][6] += counts
 	if opt.rep_file != 'stdin':
 		rep_file.close()
 	
-	if opt.under:
-		reads_n = tax_d[opt.under][4]
-	else:
-		reads_n = tax_d['1'][4] + tax_d['0'][4]	
+	reads_n = tax_d['1'][5] + tax_d['0'][5]	
 
 	if opt.cutoff < 1:
 		min_c = max([1, int(opt.cutoff*reads_n)])
-		dec = max([0, int(math.ceil(-math.log10(opt.cutoff)))])
 	else:
 		min_c = opt.cutoff
-		dec = max([0,int(math.ceil(-math.log10(min_c/reads_n)))])
-
+	
 	for tax_id in tax_d:
-		if tax_d[tax_id][4] >= min_c:
-			tax_d[tax_id][5] = (tax_id in specials or tax_d[tax_id][1] in levels)
-			path = tax_d[tax_id][3].split(':')
-			for node in path:
-				tax_d[node][6] += 1
-				if node in specials or tax_d[node][1] in levels or node == tax_id:
-					tax_d[tax_id][7].append(node)
-				if tax_d[node][1] == opt.max_level and node != tax_id:
-					tax_d[tax_id][8] = True
+		tax_d[tax_id][6] -= tax_d[tax_id][4]
+		path = tax_d[tax_id][3]
+		if tax_d[tax_id][5] > min_c and len(path) > 1 :
+			tax_d[path[-2]][6] -= tax_d[tax_id][5]
+
 
 	# output
 	out_tbl = open(opt.out_prefix + '.tbl', 'w')
 	out_krona = open(opt.out_prefix + '.krona.tree', 'w')
 	
-	for tax_id in sorted(tax_d.keys(), key = lambda k : map(lambda x : int(x.replace('-','0')), tax_d[k][3].split(':'))):
-		if tax_d[tax_id][9] or (tax_d[tax_id][4] >= min_c and (tax_d[tax_id][5] or tax_d[tax_id][6] == 1) and not tax_d[tax_id][8]):
+	for tax_id in sorted(tax_d.keys(), key = lambda x : [int(y.replace('-', '0')) for y in tax_d[x][3]]):
+		if tax_d[tax_id][5] >= min_c:
+			perc = float(tax_d[tax_id][5]) * 100 / reads_n
+			out_tbl.write('\t'.join(tax_d[tax_id][:2] + [str(len(tax_d[tax_id][3])), ':'.join(tax_d[tax_id][3]), tax_d[tax_id][2], str(tax_d[tax_id][5]), str(perc)]) + '\n')
 			
-			from_total = round(float(tax_d[tax_id][4])*100 / reads_n,dec - 2)
-			
-			out_tbl.write('\t'.join(tax_d[tax_id][:2] + [str(len(tax_d[tax_id][7])), ':'.join(tax_d[tax_id][7]), tax_d[tax_id][2], str(tax_d[tax_id][4]), str(from_total)]) + '\n')
-			
-			if opt.under:
-				if tax_d[tax_id][9]:
-					out_krona.write('\t'.join([str(tax_d[tax_id][9])] + map(lambda x : tax_d[x][2], tax_d[tax_id][7][tax_d[tax_id][7].index(opt.under):])) + '\n')
-			else:
-				if tax_d[tax_id][9]: 
-					out_krona.write('\t'.join([str(tax_d[tax_id][9])] + map(lambda x : tax_d[x][2], tax_d[tax_id][7])) + '\n')
+			if tax_d[tax_id][4]:
+				out_krona.write('\t'.join([str(tax_d[tax_id][4])] + [tax_d[x][2] for x in tax_d[tax_id][3]]) + '\n')
+			if tax_d[tax_id][6]:
+				out_krona.write('\t'.join([str(tax_d[tax_id][6])] + [tax_d[x][2] for x in tax_d[tax_id][3]]+ ['Other']) + '\n')
 				
 	out_tbl.close()
 	out_krona.close()

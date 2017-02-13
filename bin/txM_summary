@@ -11,7 +11,7 @@
 # any warranty or guaranteed support whatsoever. The New York Genome Center
 # cannot be responsible for its use, misuse, or functionality.
 
-# Version: 0.1
+# Version: 0.2
 # Author: Andre Corvelo
 
 ################################################################# /COPYRIGHT ###
@@ -43,7 +43,7 @@ def get_best_n(strata_s, n_strata):
 	return (None, 0)
 
 def get_reflen(mstring):
-	return sum([int(s) for s in findall(r'\d+(?!\-)', mstring)]) + len(findall(r'[A-z]+', mstring))
+	return sum([int(s) for s in findall(r'\d+(?!\-)', mstring)]) + len(findall(r'[A-z]', mstring))
 
 def p_rec(l, tax_d, rep_d, max_edit, array_d, len_d, excl_taxa, comp_cov):
 	la = l.strip().split('\t')
@@ -104,7 +104,7 @@ def p_rec(l, tax_d, rep_d, max_edit, array_d, len_d, excl_taxa, comp_cov):
 ################################################################################
 ### ARGUMENTS,OPTIONS ##########################################################
 
-parser = OptionParser(usage="\n%prog [options]", version="%prog 0.1")
+parser = OptionParser(usage="\n%prog [options]", version="%prog v0.2")
 
 parser.add_option(
 	"-i",

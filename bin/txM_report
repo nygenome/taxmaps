@@ -72,12 +72,12 @@ parser.add_option(
 	)
 
 parser.add_option(
-	"-m",
-	metavar = "STR",
-	type = "string",
-	dest = "d_mode",
-	default = 's',
-	help = "Taxa determination mode ('s' single-end; 'p' paired-end; 'P' paired-end strict; default = 's')"
+	"-p",
+	metavar = "FLAG",
+	dest = "paired",
+	action = 'store_true',
+	default = False,
+	help = "Paired LCA determination (only for interleaved input; default = False)"
 	)
 
 parser.add_option(
@@ -91,7 +91,7 @@ parser.add_option(
 
 (opt, args) = parser.parse_args()
 
-if opt.tax_file == None or opt.d_mode not in ['s', 'p', 'P'] or opt.out_prefix == None:
+if opt.tax_file == None or opt.out_prefix == None:
 	parser.print_help()
 	exit(-1)
      
@@ -135,12 +135,10 @@ if __name__ == '__main__':
 		la = l.strip().split('\t')
 		tax_id = la[0] 
 		path = tax_d[tax_id][3]
-		if opt.d_mode == 's':
-			counts = int(la[4])
-		elif opt.d_mode == 'p':
+		if opt.paired:
 			counts = int(la[7]) + int(la[8])
-		elif opt.d_mode == 'P':
-			counts = int(la[7])
+		else:
+			counts = int(la[4])
 		tax_d[tax_id][4] = counts
 		for node in path:
 			tax_d[node][5] += counts
@@ -158,7 +156,7 @@ if __name__ == '__main__':
 	for tax_id in tax_d:
 		tax_d[tax_id][6] -= tax_d[tax_id][4]
 		path = tax_d[tax_id][3]
-		if tax_d[tax_id][5] > min_c and len(path) > 1 :
+		if tax_d[tax_id][5] >= min_c and len(path) > 1 :
 			tax_d[path[-2]][6] -= tax_d[tax_id][5]
 
 

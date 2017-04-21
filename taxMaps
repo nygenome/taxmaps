@@ -639,8 +639,7 @@ if __name__ == '__main__':
 	tax_command += ' 2> /dev/null \\\n\t| ' 
 	tax_command +=  'txM_lca '
 	tax_command += '-t ' + rp(tax_lnk, run_dir) + ' '
-	if det_mode == 'p' or det_mode == 'P':
-		tax_command += '-p '
+	tax_command += '-m ' + det_mode + ' '
 	tax_command += '2> ' + rp(map_dir + '/' + prefix + '.merged.map.lca', run_dir)
 	tax_command += ' \\\n\t| '
 	tax_command += 'txM_summary '
@@ -657,7 +656,8 @@ if __name__ == '__main__':
 	rep_command = 'cat ' + rp(out_dir + '/' + prefix + '.merged.map.lca.summary', out_dir) + ' \\\n\t| '
 	rep_command += 'txM_report '
 	rep_command += '-t ' + rp(tax_lnk, out_dir) + ' '
-	rep_command += '-m ' + det_mode + ' '
+	if det_mode == 'p' or det_mode == 'P':
+		rep_command += '-p '
 	rep_command += '-c ' + rep_cutoff + ' '
 	rep_command += '-o ' + prefix + ' '
 

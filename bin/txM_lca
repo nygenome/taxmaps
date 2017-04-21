@@ -81,19 +81,28 @@ def p_pair(pl1, pl2, tax_d):
 		tag_l[1] = tag_d[tax_2]
 	tag = ''.join(tag_l)
 	
-	if tax_1 == '-':
-		p_tax = tax_2
-	elif tax_1 == '0':
-		p_tax = tax_1
-		if tax_2 != '-' and tax_2 != '0':
+	if opt.d_mode == 'p':
+		if tax_1 == '-':
 			p_tax = tax_2
-	else:
-		p_tax = tax_1
-		if tax_2 != '-' and tax_2 != '0' and tax_2 != tax_1:
-			if tax_2 in tax_d[tax_1][3].split(':'):
-				pass
-			elif tax_1 in tax_d[tax_2][3].split(':'):
+		elif tax_1 == '0':
+			p_tax = tax_1
+			if tax_2 != '-' and tax_2 != '0':
 				p_tax = tax_2
+		else:
+			p_tax = tax_1
+			if tax_2 != '-' and tax_2 != '0' and tax_2 != tax_1:
+				if tax_2 in tax_d[tax_1][3].split(':'):
+					pass
+				elif tax_1 in tax_d[tax_2][3].split(':'):
+					p_tax = tax_2
+				else:
+					p_tax = lca(sorted([tax_d[tax_1][3], tax_d[tax_2][3]]))
+	elif opt.d_mode == 'P':
+		if tax_1 == '-' or tax_2 == '-':
+			p_tax = '-'
+		else:
+			if tax_1 == '0' or tax_2 == '0':
+				p_tax = '0'
 			else:
 				p_tax = lca(sorted([tax_d[tax_1][3], tax_d[tax_2][3]]))
 	tax_str = '\t'.join([tag] + tax_d[p_tax][:3])
@@ -128,12 +137,12 @@ parser.add_option(
 	)
 
 parser.add_option(
-	"-p",
-	metavar = "FLAG",
-	dest = "paired",
-	action = 'store_true',
-	default = False,
-	help = "Paired LCA determination (only for interleaved input; default = False)"
+	"-m",
+	metavar = "STR",
+	type = "string",
+	dest = "d_mode",
+	default = 's',
+	help = "Taxa determination mode ('s' single-end; 'p' paired-end; 'P' paired-end strict; default = 's')"
 	)
 
 parser.add_option(
@@ -188,11 +197,11 @@ if __name__ == '__main__':
 		map_file = open(opt.map_file, 'r')
 	else:
 		map_file = stdin
-	if not opt.paired:
+	if opt.d_mode == 's':
 		for l in map_file:
 			stdout.write(p_rec(l.strip(), tax_d, excluded) + '\n')
 			stderr.write(p_rec(l.strip(), tax_d, excluded) + '\n')
-	elif opt.paired:
+	elif opt.d_mode == 'p' or opt.d_mode == 'P':
 		while 1:
 			l1 = map_file.readline()
 			if not l1:

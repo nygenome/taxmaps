@@ -444,7 +444,7 @@ def main(args=None):
 		sys.exit(-1)
     
 	# base dirs
-	module_dir = os.path.abspath(os.path.dirname(__file__))
+	module_dir = os.path.realpath(os.path.dirname(__file__))
 	start_dir = os.getcwd()
 	
 	prefix = opt.m_prefix

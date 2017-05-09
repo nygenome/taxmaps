@@ -332,90 +332,92 @@ parser_misc.add_option(
 
 parser.add_option_group(parser_misc)
 
-(opt, args) = parser.parse_args()
+def parse_args(args=None):
+	if args is None:
+		args = sys.argv
+	opt, args = parser.parse_args(args)
 
 
-### check options
-error_list = []
-warning_list = []
+	### check options
+	error_list = []
+	warning_list = []
 
-# input
-input_list = []
-if not opt.i_comm and not opt.i_fq and not opt.i_bam and (not opt.i_fq_1 or not opt.i_fq_2):
-	error_list.append('ERROR: Missing valid input [-i | -b | -f | (-1 & -2)]')
-if opt.i_comm:
-	input_list.append('-i')
-if opt.i_fq:
-	if missing_files(opt.i_fq):
-		error_list.append('ERROR: File(s) not found in [-f ' + opt.i_fq + ']')
-	else:
-		input_list.append('-f')
-if opt.i_bam:
-	if missing_files(opt.i_bam):
-		error_list.append('ERROR: File(s) not found in [-b ' + opt.i_bam + ']')
-	else:
-		input_list.append('-b')
-if opt.i_fq_1 and opt.i_fq_2:
-	if len(opt.i_fq_1.split(',')) != len(opt.i_fq_2.split(',')):
-		error_list.append('ERROR: Different number of R1 an R2 files [-1 ' + opt.i_fq_1 + ' -2 ' + opt.i_fq_2 + ']')
-	else:
-		if missing_files(opt.i_fq_1) or missing_files(opt.i_fq_2):
-			error_list.append('ERROR: File(s) not found in [-1 ' + opt.i_fq_1 + ' -2 ' + opt.i_fq_2 + ']')
+	# input
+	input_list = []
+	if not opt.i_comm and not opt.i_fq and not opt.i_bam and (not opt.i_fq_1 or not opt.i_fq_2):
+		error_list.append('ERROR: Missing valid input [-i | -b | -f | (-1 & -2)]')
+	if opt.i_comm:
+		input_list.append('-i')
+	if opt.i_fq:
+		if missing_files(opt.i_fq):
+			error_list.append('ERROR: File(s) not found in [-f ' + opt.i_fq + ']')
 		else:
-			input_list.append('(-1 & -2)')
-if len(input_list) > 1:
-	error_list.append('ERROR: Too many inputs [' + ' & '.join(input_list) + ']')
+			input_list.append('-f')
+	if opt.i_bam:
+		if missing_files(opt.i_bam):
+			error_list.append('ERROR: File(s) not found in [-b ' + opt.i_bam + ']')
+		else:
+			input_list.append('-b')
+	if opt.i_fq_1 and opt.i_fq_2:
+		if len(opt.i_fq_1.split(',')) != len(opt.i_fq_2.split(',')):
+			error_list.append('ERROR: Different number of R1 an R2 files [-1 ' + opt.i_fq_1 + ' -2 ' + opt.i_fq_2 + ']')
+		else:
+			if missing_files(opt.i_fq_1) or missing_files(opt.i_fq_2):
+				error_list.append('ERROR: File(s) not found in [-1 ' + opt.i_fq_1 + ' -2 ' + opt.i_fq_2 + ']')
+			else:
+				input_list.append('(-1 & -2)')
+	if len(input_list) > 1:
+		error_list.append('ERROR: Too many inputs [' + ' & '.join(input_list) + ']')
+			
 		
-	
-# mapping
-n_indexes = 0
-if opt.m_indices:
-	if missing_files(opt.m_indices):
-		error_list.append('ERROR: File(s) not found in [-d ' + opt.m_indices + ']')
+	# mapping
+	n_indexes = 0
+	if opt.m_indices:
+		if missing_files(opt.m_indices):
+			error_list.append('ERROR: File(s) not found in [-d ' + opt.m_indices + ']')
+		else:
+			n_indexes = len(opt.m_indices.split(','))
+	if not n_indexes:
+		error_list.append('ERROR: Missing valid index(es) [-d]')
+
+	n_dist = len(opt.m_edits.split(','))
+	if n_dist != n_indexes and n_indexes:
+		if n_dist == 1 :
+			warning_list.append('WARNING: Setting the maximum edit distance for all indexes [-e ' + ','.join([opt.m_edits]*n_indexes) + ']')
+		else:
+			error_list.append('ERROR: ' + str(n_dist) + ' distances specified [-e ' + opt.m_edits + '], incompatible with ' + str(n_indexes) + ' indexes [-d ' + opt.m_indices + ']')
+
+	n_cpus = len(opt.m_cpus.split(','))
+	if n_cpus != n_indexes and n_indexes:
+		if n_cpus == 1 :
+			warning_list.append('WARNING: Setting the number of CPUs for all indexes [-c ' + ','.join([opt.m_cpus]*n_indexes) + ']')
+		else:
+			error_list.append('ERROR: ' + str(n_cpus) + ' CPU specifications [-c ' + opt.m_cpus + '], incompatible with ' + str(n_indexes) + ' indexes [-d ' + opt.m_indices + ']')
+
+
+	# taxonomy
+	if opt.t_table:
+		if missing_files(opt.t_table):
+			error_list.append('ERROR: File not found [-t ' + opt.t_table + ']')
 	else:
-		n_indexes = len(opt.m_indices.split(','))
-if not n_indexes:
-	error_list.append('ERROR: Missing valid index(es) [-d]')
-
-n_dist = len(opt.m_edits.split(','))
-if n_dist != n_indexes and n_indexes:
-	if n_dist == 1 :
-		warning_list.append('WARNING: Setting the maximum edit distance for all indexes [-e ' + ','.join([opt.m_edits]*n_indexes) + ']')
-	else:
-		error_list.append('ERROR: ' + str(n_dist) + ' distances specified [-e ' + opt.m_edits + '], incompatible with ' + str(n_indexes) + ' indexes [-d ' + opt.m_indices + ']')
-
-n_cpus = len(opt.m_cpus.split(','))
-if n_cpus != n_indexes and n_indexes:
-	if n_cpus == 1 :
-		warning_list.append('WARNING: Setting the number of CPUs for all indexes [-c ' + ','.join([opt.m_cpus]*n_indexes) + ']')
-	else:
-		error_list.append('ERROR: ' + str(n_cpus) + ' CPU specifications [-c ' + opt.m_cpus + '], incompatible with ' + str(n_indexes) + ' indexes [-d ' + opt.m_indices + ']')
+		error_list.append('ERROR: Missing taxonomic table [-t]')
 
 
-# taxonomy
-if opt.t_table:
-	if missing_files(opt.t_table):
-		error_list.append('ERROR: File not found [-t ' + opt.t_table + ']')
-else:
-	error_list.append('ERROR: Missing taxonomic table [-t]')
+	if opt.t_mode not in ['s', 'p', 'P']:
+		error_list.append('ERROR: Invalid mode [-m ' + opt.t_mode + ']')
 
+		
+	# misc
+	if opt.m_queue:
+		if opt.m_queue not in subprocess.check_output('qstat -g c | egrep "CLUSTER|\--" -v | awk \'{print $1}\'', shell=True).split('\n'): 
+			error_list.append('ERROR: Specified queue does not exist [-q ' + opt.m_queue + ']')
+			ecounter += 1
 
-if opt.t_mode not in ['s', 'p', 'P']:
-	error_list.append('ERROR: Invalid mode [-m ' + opt.t_mode + ']')
+	sys.stderr.write('\n'.join(warning_list) + '\n')
+	if error_list:
+		raise Exception('\n'.join(error_list) + '\n\n')
 
-	
-# misc
-if opt.m_queue:
-	if opt.m_queue not in subprocess.check_output('qstat -g c | egrep "CLUSTER|\--" -v | awk \'{print $1}\'', shell=True).split('\n'): 
-		error_list.append('ERROR: Specified queue does not exist [-q ' + opt.m_queue + ']')
-		ecounter += 1
-
-
-sys.stderr.write('\n'.join(warning_list) + '\n')
-if error_list:
-	sys.stderr.write('\n'.join(error_list) + '\n\n')
-	parser.print_help()
-	exit(-1)
+	return opt, args
 
 ######################################################### /ARGUMENTS,OPTIONS ###
 ################################################################################
@@ -433,7 +435,14 @@ if error_list:
 ################################################################################
 ### MAIN #######################################################################
 
-if __name__ == '__main__':
+def main(args=None):
+	try:
+		opt, args = parse_args(args)
+	except Exception as e:
+		sys.stderr.write(str(e))
+		parser.print_help()
+		sys.exit(-1)
+    
 	# base dirs
 	module_dir = os.path.abspath(os.path.dirname(__file__))
 	start_dir = os.getcwd()
@@ -685,3 +694,6 @@ if __name__ == '__main__':
 		
 ###################################################################### /MAIN ###
 ################################################################################
+
+if __name__ == '__main__':
+	main()

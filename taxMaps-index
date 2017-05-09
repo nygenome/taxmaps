@@ -115,11 +115,6 @@ parser.add_option(
 	help = "Dry run (default = False)"
 	)
 
-(opt, args) = parser.parse_args()
-if not opt.fasta_file or not opt.corr_file or not opt.tax_file:
-	parser.print_help()
-	sys.exit(-1)
-
      
 ######################################################### /ARGUMENTS,OPTIONS ###
 ################################################################################
@@ -137,7 +132,15 @@ if not opt.fasta_file or not opt.corr_file or not opt.tax_file:
 ################################################################################
 ### MAIN #######################################################################
 
-if __name__ == '__main__':
+def main(args=None):
+	if args is None:
+		args = sys.argv
+	
+	opt, args = parser.parse_args(args)
+	if not opt.fasta_file or not opt.corr_file or not opt.tax_file:
+		parser.print_help()
+		sys.exit(-1)
+
 	module_dir = os.path.abspath(os.path.dirname(__file__))
 		
 	fasta_f = opt.fasta_file
@@ -160,7 +163,7 @@ if __name__ == '__main__':
 	if sge_queue:
 		sge_f = prefix + '.sge'
 
-	dry_run = opt.dry	
+	dry_run = opt.dry
 	
 	gitax_str = ' '.join(['txM_gitax', '-i', fasta_f, '-c', gitax_f,'-t', tax_f, '2>', out_f, '>', in_f])
 	len_str = ' '.join(['txM_fastalen', '-i', in_f, '>', len_f])
@@ -187,3 +190,5 @@ if __name__ == '__main__':
 ###################################################################### /MAIN ###
 ################################################################################
 
+if __name__ == '__main__':
+	main()

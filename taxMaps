@@ -23,7 +23,7 @@
 ### MODULES ####################################################################
 
 from optparse import OptionParser, OptionGroup
-import sys, os, errno, commands, uuid
+import sys, os, errno, subprocess, uuid
 
 ################################################################### /MODULES ###
 ################################################################################
@@ -406,7 +406,7 @@ if opt.t_mode not in ['s', 'p', 'P']:
 	
 # misc
 if opt.m_queue:
-	if opt.m_queue not in commands.getoutput('qstat -g c | egrep "CLUSTER|\--" -v | awk \'{print $1}\'').split('\n'): 
+	if opt.m_queue not in subprocess.check_output('qstat -g c | egrep "CLUSTER|\--" -v | awk \'{print $1}\'', shell=True).split('\n'): 
 		error_list.append('ERROR: Specified queue does not exist [-q ' + opt.m_queue + ']')
 		ecounter += 1
 

@@ -244,7 +244,7 @@ if __name__ == '__main__':
 				tot_tax_len = sum(len_d[tax].values())
 			if tax in array_d:
 				for sid in array_d[tax]:
-					cov_array += np.histogram(array_d[tax][sid], np.concatenate((np.array([0]), 2**np.arange(17))))[0]
+					cov_array = cov_array + np.histogram(array_d[tax][sid], np.concatenate((np.array([0]), 2**np.arange(17))))[0]
 			tot_tax_cov = cov_array[1:].sum()
 			cov_array[0] = tot_tax_len - tot_tax_cov 
 

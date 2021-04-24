@@ -67,11 +67,6 @@ parser.add_option(
 	help = "NCBI Taxonomy nodes.dmp file (Mandatory)"
 	)
 
-(opt, args) = parser.parse_args()
-
-if not opt.names_file or not opt.nodes_file:
-	parser.print_help()
-	exit(-1)
 
 ######################################################### /ARGUMENTS,OPTIONS ###
 ################################################################################
@@ -89,26 +84,35 @@ if not opt.names_file or not opt.nodes_file:
 ################################################################################
 ### MAIN #######################################################################
 
-if __name__ == '__main__':
+def main(args=None):
+	if args is None:
+		args = sys.argv
+	
+	opt, args = parser.parse_args(args)
+	
+	if not opt.names_file or not opt.nodes_file:
+		parser.print_help()
+		sys.exit(-1)
+	
 	node_dict = {}
 
 	nodes_file = open(opt.nodes_file, 'r')
 	for line in nodes_file:
-		la = line.strip().split('\t')		
+		la = line.strip().split('\t')
 		node = la[0]
 		parent = la[2]
 		rank = la[4]
 		node_dict[node] = [parent, rank] 
-	nodes_file.close()		
+	nodes_file.close()
 
 	names_file = open(opt.names_file, 'r')
 	for line in names_file:
-		la = line.strip().split('\t')		
+		la = line.strip().split('\t')
 		if la[6] == 'scientific name':
 			node = la[0]
 			sci_name = la[2]
 			node_dict[node].append(sci_name)
-	names_file.close()	   
+	names_file.close()
 
 	for node in node_dict:
 		node_list = [node] + node_dict[node][1:] + [':'.join(find_path(node, node_dict))]
@@ -116,3 +120,6 @@ if __name__ == '__main__':
 
 ###################################################################### /MAIN ###
 ################################################################################
+
+if __name__ == '__main__':
+	main()
